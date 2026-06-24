@@ -13,14 +13,14 @@ let config = {
   formScansUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse',
   formScansEntryId: 'entry.516759243',
   formScansEntryAct: 'entry.1191458563',
-  sheetScansTsvUrl: '',
+  sheetScansTsvUrl: 'https://docs.google.com/spreadsheets/d/1iXEiZTc3dAlGf2-GPAGleXDjYkJwJfS5VP0HoRqMtqA/export?format=tsv',
   
   formActsUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSeDRWFcB1z6szNOYi4CwXNlsViOwLUIrRv3k4gPD1tOv9LKeQ/formResponse',
   formActsEntryId: 'entry.1257509628',
   formActsEntryName: 'entry.1200865155',
   formActsEntryDate: 'entry.468554742',
   formActsEntryTime: 'entry.1824685290',
-  sheetActsTsvUrl: ''
+  sheetActsTsvUrl: 'https://docs.google.com/spreadsheets/d/1eK3or3idDQWgn2d52Z_MsjCYt1B3DSa7W602LOnqcwU/export?format=tsv'
 };
 
 // Scanner instance and pause state
@@ -150,14 +150,14 @@ function loadFromStorage() {
     config.formScansUrl = getStored(STORAGE_KEYS.FORM_SCANS_URL, 'https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse');
     config.formScansEntryId = getStored(STORAGE_KEYS.FORM_SCANS_ENTRY_ID, 'entry.516759243');
     config.formScansEntryAct = getStored(STORAGE_KEYS.FORM_SCANS_ENTRY_ACT, 'entry.1191458563');
-    config.sheetScansTsvUrl = getStored(STORAGE_KEYS.SHEET_SCANS_TSV_URL, '');
+    config.sheetScansTsvUrl = getStored(STORAGE_KEYS.SHEET_SCANS_TSV_URL, 'https://docs.google.com/spreadsheets/d/1iXEiZTc3dAlGf2-GPAGleXDjYkJwJfS5VP0HoRqMtqA/export?format=tsv');
     
     config.formActsUrl = getStored(STORAGE_KEYS.FORM_ACTS_URL, 'https://docs.google.com/forms/d/e/1FAIpQLSeDRWFcB1z6szNOYi4CwXNlsViOwLUIrRv3k4gPD1tOv9LKeQ/formResponse');
     config.formActsEntryId = getStored(STORAGE_KEYS.FORM_ACTS_ENTRY_ID, 'entry.1257509628');
     config.formActsEntryName = getStored(STORAGE_KEYS.FORM_ACTS_ENTRY_NAME, 'entry.1200865155');
     config.formActsEntryDate = getStored(STORAGE_KEYS.FORM_ACTS_ENTRY_DATE, 'entry.468554742');
     config.formActsEntryTime = getStored(STORAGE_KEYS.FORM_ACTS_ENTRY_TIME, 'entry.1824685290');
-    config.sheetActsTsvUrl = getStored(STORAGE_KEYS.SHEET_ACTS_TSV_URL, '');
+    config.sheetActsTsvUrl = getStored(STORAGE_KEYS.SHEET_ACTS_TSV_URL, 'https://docs.google.com/spreadsheets/d/1eK3or3idDQWgn2d52Z_MsjCYt1B3DSa7W602LOnqcwU/export?format=tsv');
   } catch (e) {
     console.error("Failed to load settings:", e);
   }
@@ -1281,28 +1281,28 @@ function initDataManagement() {
       config.formScansUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse';
       config.formScansEntryId = 'entry.516759243';
       config.formScansEntryAct = 'entry.1191458563';
-      config.sheetScansTsvUrl = '';
+      config.sheetScansTsvUrl = 'https://docs.google.com/spreadsheets/d/1iXEiZTc3dAlGf2-GPAGleXDjYkJwJfS5VP0HoRqMtqA/export?format=tsv';
       
       config.formActsUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSeDRWFcB1z6szNOYi4CwXNlsViOwLUIrRv3k4gPD1tOv9LKeQ/formResponse';
       config.formActsEntryId = 'entry.1257509628';
       config.formActsEntryName = 'entry.1200865155';
       config.formActsEntryDate = 'entry.468554742';
       config.formActsEntryTime = 'entry.1824685290';
-      config.sheetActsTsvUrl = '';
+      config.sheetActsTsvUrl = 'https://docs.google.com/spreadsheets/d/1eK3or3idDQWgn2d52Z_MsjCYt1B3DSa7W602LOnqcwU/export?format=tsv';
       
       saveToStorage();
       
       document.getElementById('form-scans-url').value = config.formScansUrl;
       document.getElementById('form-scans-entry-id').value = config.formScansEntryId;
       document.getElementById('form-scans-entry-act').value = config.formScansEntryAct;
-      document.getElementById('sheet-scans-tsv-url').value = '';
+      document.getElementById('sheet-scans-tsv-url').value = config.sheetScansTsvUrl;
       
       document.getElementById('form-acts-url').value = config.formActsUrl;
       document.getElementById('form-acts-entry-id').value = config.formActsEntryId;
       document.getElementById('form-acts-entry-name').value = config.formActsEntryName;
       document.getElementById('form-acts-entry-date').value = config.formActsEntryDate;
       document.getElementById('form-acts-entry-time').value = config.formActsEntryTime;
-      document.getElementById('sheet-acts-tsv-url').value = '';
+      document.getElementById('sheet-acts-tsv-url').value = config.sheetActsTsvUrl;
       
       renderActivityDropdowns();
       renderActivityTable();
