@@ -496,10 +496,10 @@ function initScannerSettings() {
     stopScanner();
   });
   
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (isIOS) {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isMobile) {
     cameraSelect.innerHTML = `
-      <option value="environment" ${state.activeCameraId !== 'user' ? 'selected' : ''}>กล้องหลัง (Back Camera)</option>
+      <option value="environment" ${state.activeCameraId !== 'user' ? 'selected' : ''}>กล้องหลังหลัก (Main Back Camera)</option>
       <option value="user" ${state.activeCameraId === 'user' ? 'selected' : ''}>กล้องหน้า (Front Camera)</option>
     `;
     if (!state.activeCameraId || (state.activeCameraId !== 'environment' && state.activeCameraId !== 'user')) {
@@ -533,10 +533,10 @@ function startScanner() {
     }
   };
   
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   
   let cameraIdOrFacing;
-  if (isIOS) {
+  if (isMobile) {
     if (state.activeCameraId === 'user') {
       cameraIdOrFacing = { facingMode: "user" };
     } else {
@@ -557,10 +557,10 @@ function startScanner() {
     stopBtn.style.display = 'inline-flex';
     
     // Retrieve other camera devices on success
-    if (isIOS) {
-      // For iOS: retain user/environment options instead of listing raw IDs
+    if (isMobile) {
+      // For mobile: retain user/environment options instead of listing raw IDs
       let selectOptions = '';
-      selectOptions += `<option value="environment" ${state.activeCameraId === 'environment' ? 'selected' : ''}>กล้องหลัง (Back Camera)</option>`;
+      selectOptions += `<option value="environment" ${state.activeCameraId === 'environment' ? 'selected' : ''}>กล้องหลังหลัก (Main Back Camera)</option>`;
       selectOptions += `<option value="user" ${state.activeCameraId === 'user' ? 'selected' : ''}>กล้องหน้า (Front Camera)</option>`;
       cameraSelect.innerHTML = selectOptions;
     } else {
