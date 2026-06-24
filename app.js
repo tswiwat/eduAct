@@ -275,6 +275,9 @@ function initTabs() {
         renderRecentScans();
       } else if (tabName === 'activity') {
         renderActivityTable();
+        if (config.sheetActsTsvUrl || config.sheetScansTsvUrl) {
+          syncFromSheets(true);
+        }
       } else if (tabName === 'dashboard') {
         renderActivityDropdowns();
         refreshDashboard();
@@ -956,10 +959,12 @@ async function submitToForm(formUrl, params) {
 }
 
 // Fetch activities and scans from Google Sheets published TSV URLs
-async function syncFromSheets() {
+async function syncFromSheets(silent = false) {
   if (!config.sheetScansTsvUrl && !config.sheetActsTsvUrl) return;
   
-  showToast("กำลังซิงค์", "กำลังดึงข้อมูลอัปเดตล่าสุดจาก Google Sheets (TSV)...", "warning");
+  if (!silent) {
+    showToast("กำลังซิงค์", "กำลังดึงข้อมูลอัปเดตล่าสุดจาก Google Sheets (TSV)...", "warning");
+  }
   
   let newActCount = 0;
   let newScanCount = 0;
@@ -1061,7 +1066,9 @@ async function syncFromSheets() {
     refreshDashboard();
     showToast("ดึงข้อมูลเสร็จสิ้น", `ได้รับกิจกรรมใหม่ ${newActCount} รายการ และข้อมูลสแกน ${newScanCount} รายการจาก Google Sheets`, "success");
   } else {
-    showToast("ซิงค์สำเร็จ", "ข้อมูลตรงกับ Google Sheets ล่าสุดแล้ว", "success");
+    if (!silent) {
+      showToast("ซิงค์สำเร็จ", "ข้อมูลตรงกับ Google Sheets ล่าสุดแล้ว", "success");
+    }
   }
 }
 
