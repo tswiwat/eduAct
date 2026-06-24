@@ -23,7 +23,7 @@ function playBeep(success = true) {
     gainNode.connect(audioCtx.destination);
     
     if (success) {
-      // High pitch double-beep or single clear chime for success
+      // High pitch chime for success
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
       gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
@@ -31,7 +31,6 @@ function playBeep(success = true) {
       gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
       oscillator.stop(audioCtx.currentTime + 0.15);
       
-      // Trigger mobile haptic feedback if supported
       if (navigator.vibrate) {
         navigator.vibrate(60);
       }
@@ -78,7 +77,6 @@ function showToast(title, message, type = 'success') {
   
   container.appendChild(toast);
   
-  // Slide out and remove toast after 3.5 seconds
   setTimeout(() => {
     toast.style.animation = 'fadeIn 0.3s ease-in-out reverse';
     setTimeout(() => {
@@ -98,17 +96,31 @@ const STORAGE_KEYS = {
 };
 
 function loadFromStorage() {
+  // Load Activities Safely
   try {
-    state.activities = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITIES)) || [];
-    state.scans = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCANS)) || [];
+    const storedActivities = localStorage.getItem(STORAGE_KEYS.ACTIVITIES);
+    state.activities = storedActivities ? JSON.parse(storedActivities) : [];
+  } catch (e) {
+    console.error("Failed to load activities:", e);
+    state.activities = [];
+  }
+
+  // Load Scans Safely
+  try {
+    const storedScans = localStorage.getItem(STORAGE_KEYS.SCANS);
+    state.scans = storedScans ? JSON.parse(storedScans) : [];
+  } catch (e) {
+    console.error("Failed to load scans:", e);
+    state.scans = [];
+  }
+
+  // Load Settings Safely
+  try {
     state.activeActivityId = localStorage.getItem(STORAGE_KEYS.ACTIVE_ACTIVITY) || '';
     state.theme = localStorage.getItem(STORAGE_KEYS.THEME) || 'light';
-    
-    // Set theme attribute on html node
     document.documentElement.setAttribute('data-theme', state.theme);
   } catch (e) {
-    console.error("Failed to load local storage:", e);
-    showToast("ข้อผิดพลาด", "ไม่สามารถอ่านข้อมูลระบบนำเสนอได้", "error");
+    console.error("Failed to load settings:", e);
   }
 }
 
@@ -120,7 +132,7 @@ function saveToStorage() {
     localStorage.setItem(STORAGE_KEYS.THEME, state.theme);
   } catch (e) {
     console.error("Failed to save to local storage:", e);
-    showToast("คำเตือน", "พื้นที่จัดเก็บข้อมูลเต็ม! กรุณาส่งออกข้อมูลออกบ้าง", "warning");
+    showToast("คำเตือน", "พื้นที่จัดเก็บข้อมูลเต็ม! กรุณาส่งออกข้อมูลเพื่อเพิ่มพื้นที่", "warning");
   }
 }
 
@@ -143,8 +155,6 @@ window.addEventListener('DOMContentLoaded', () => {
 // Theme Toggle Setup
 function initThemeToggle() {
   const toggleBtn = document.getElementById('theme-toggle');
-  
-  // Set initial state
   document.documentElement.setAttribute('data-theme', state.theme);
   
   toggleBtn.addEventListener('click', () => {
@@ -155,7 +165,7 @@ function initThemeToggle() {
   });
 }
 
-// Tab Switching Setup
+// Tab Switching Setup (Ensures dropdowns/tables sync when tabs switch)
 function initTabs() {
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
@@ -171,11 +181,11 @@ function initTabs() {
       
       state.currentTab = tabName;
       
-      // Update buttons
+      // Update buttons active class
       tabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // Update views
+      // Update views active class
       tabContents.forEach(content => {
         content.classList.remove('active');
         if (content.id === `${tabName}-tab`) {
@@ -183,11 +193,15 @@ function initTabs() {
         }
       });
       
-      // Refresh views on tab entry
-      if (tabName === 'dashboard') {
-        refreshDashboard();
-      } else if (tabName === 'scan') {
+      // Force UI refresh on tab entry
+      if (tabName === 'scan') {
+        renderActivityDropdowns();
         renderRecentScans();
+      } else if (tabName === 'activity') {
+        renderActivityTable();
+      } else if (tabName === 'dashboard') {
+        renderActivityDropdowns(); // Refreshes dashboard activity select as well
+        refreshDashboard();
       }
     });
   });
@@ -213,7 +227,7 @@ function initActivityForm() {
       return;
     }
     
-    // Check for duplicate activity name
+    // Check for duplicate activity name on the same date
     const exists = state.activities.some(act => act.name.toLowerCase() === name.toLowerCase() && act.date === date);
     if (exists) {
       showToast("กิจกรรมซ้ำ", "มีกิจกรรมชื่อนี้ในวันที่กำหนดอยู่แล้ว", "warning");
@@ -229,7 +243,7 @@ function initActivityForm() {
     
     state.activities.push(newActivity);
     
-    // If there is no active activity, set this new one as active
+    // If there is no active activity or active activity is empty, set this new one as active
     if (!state.activeActivityId) {
       state.activeActivityId = newActivity.id;
     }
@@ -256,7 +270,7 @@ function renderActivityTable() {
   if (state.activities.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="4" class="empty-state">
+        <td colspan="5" class="empty-state">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           <p>ยังไม่มีรายการกิจกรรมในระบบ เริ่มสร้างโดยกรอกฟอร์มด้านบน</p>
         </td>
@@ -271,8 +285,7 @@ function renderActivityTable() {
   });
   
   tbody.innerHTML = sortedActivities.map((act, index) => {
-    const scanCount = state.scans.filter(s => s.activityName === act.name).length;
-    // Format Date to Thai local format
+    const scanCount = state.scans.filter(s => s.activityName === act.name && s.isValid === true).length;
     const thaiDate = formatThaiDate(act.date);
     
     return `
@@ -282,7 +295,7 @@ function renderActivityTable() {
         <td>${thaiDate} (${act.time} น.)</td>
         <td><span class="badge badge-primary">${scanCount} คน</span></td>
         <td>
-          <button class="btn btn-secondary btn-danger cursor-pointer" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="deleteActivity('${act.id}')">
+          <button type="button" class="btn btn-secondary btn-danger cursor-pointer" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="deleteActivity('${act.id}')">
             ลบ
           </button>
         </td>
@@ -299,7 +312,7 @@ window.deleteActivity = function(id) {
   const scanCount = state.scans.filter(s => s.activityName === act.name).length;
   let confirmMessage = `ยืนยันการลบกิจกรรม "${act.name}"?`;
   if (scanCount > 0) {
-    confirmMessage += `\n*คำเตือน: กิจกรรมนี้มีข้อมูลการสแกนแล้ว ${scanCount} รายการ ข้อมูลการสแกนในกิจกรรมนี้จะยังคงอยู่ในประวัติ แต่อาจแสดงผลไม่สมบูรณ์ในรายงานแดชบอร์ด`;
+    confirmMessage += `\n*คำเตือน: กิจกรรมนี้มีข้อมูลการบันทึกแล้ว ${scanCount} รายการ ข้อมูลการบันทึกของกิจกรรมนี้จะยังคงอยู่ในประวัติ แต่อาจแสดงผลไม่สมบูรณ์ในรายงาน`;
   }
   
   if (confirm(confirmMessage)) {
@@ -319,31 +332,38 @@ function renderActivityDropdowns() {
   const scanSelect = document.getElementById('scan-activity-select');
   const dashSelect = document.getElementById('dash-activity-select');
   
-  // Sort activities by date/time (newest first)
   const sorted = [...state.activities].sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`));
   
-  // Scan Dropdown (Requires select an active activity)
+  // 1. Scan Dropdown
   if (sorted.length === 0) {
     scanSelect.innerHTML = `<option value="">-- โปรดสร้างกิจกรรมก่อนในแท็บจัดการกิจกรรม --</option>`;
+    state.activeActivityId = '';
   } else {
+    // Check if the current activeActivityId is still valid
+    const activeExists = sorted.some(act => act.id === state.activeActivityId);
+    if (!state.activeActivityId || !activeExists) {
+      state.activeActivityId = sorted[0].id;
+    }
+    
     scanSelect.innerHTML = sorted.map(act => {
       const selectedAttr = act.id === state.activeActivityId ? 'selected' : '';
       return `<option value="${act.id}" ${selectedAttr}>${escapeHTML(act.name)} (${formatThaiDate(act.date)})</option>`;
     }).join('');
-    
-    // Update active id in state if it was empty
-    if (!state.activeActivityId && sorted.length > 0) {
-      state.activeActivityId = sorted[0].id;
-    }
   }
   
-  // Dashboard Dropdown (Allows selecting a specific activity or "All")
-  dashSelect.innerHTML = `<option value="ALL">-- แสดงทุกกิจกรรมรวมกัน --</option>` + sorted.map(act => {
-    return `<option value="${escapeHTML(act.name)}">${escapeHTML(act.name)} (${formatThaiDate(act.date)})</option>`;
+  // 2. Dashboard Dropdown (Preserves current selection if valid)
+  const currentDashVal = dashSelect ? dashSelect.value : 'ALL';
+  let dashOptions = `<option value="ALL">-- แสดงทุกกิจกรรมรวมกัน --</option>` + sorted.map(act => {
+    const isSelected = act.name === currentDashVal ? 'selected' : '';
+    return `<option value="${escapeHTML(act.name)}" ${isSelected}>${escapeHTML(act.name)} (${formatThaiDate(act.date)})</option>`;
   }).join('');
+  
+  if (dashSelect) {
+    dashSelect.innerHTML = dashOptions;
+  }
 }
 
-// Scanner Settings (Camera initialization, Start/Stop toggle)
+// Scanner Settings & Camera detection flow
 function initScannerSettings() {
   const startBtn = document.getElementById('btn-start-scan');
   const stopBtn = document.getElementById('btn-stop-scan');
@@ -357,14 +377,22 @@ function initScannerSettings() {
     renderRecentScans();
   });
   
+  // Switch camera when user manually changes selection
+  cameraSelect.addEventListener('change', (e) => {
+    state.activeCameraId = e.target.value;
+    if (state.isScanning) {
+      // If currently scanning, restart scanner with new camera ID
+      stopScanner().then(() => {
+        startScanner();
+      });
+    }
+  });
+  
   startBtn.addEventListener('click', () => {
     if (!state.activeActivityId) {
       showToast("เลือกกิจกรรมก่อน", "กรุณาเลือกกิจกรรมที่ต้องการสแกน หรือสร้างขึ้นใหม่", "warning");
       return;
     }
-    
-    // Set selected camera
-    state.activeCameraId = cameraSelect.value;
     startScanner();
   });
   
@@ -372,22 +400,8 @@ function initScannerSettings() {
     stopScanner();
   });
   
-  // Populate cameras dropdown
-  Html5Qrcode.getCameras().then(devices => {
-    if (devices && devices.length > 0) {
-      cameraSelect.innerHTML = devices.map((device, index) => {
-        // Prefer back camera if available by default
-        const isBack = device.label.toLowerCase().includes('back') || device.label.toLowerCase().includes('rear');
-        const selectedAttr = isBack || index === 0 ? 'selected' : '';
-        return `<option value="${device.id}" ${selectedAttr}>${device.label || `กล้องที่ ${index + 1}`}</option>`;
-      }).join('');
-    } else {
-      cameraSelect.innerHTML = `<option value="">ไม่พบกล้องในอุปกรณ์นี้</option>`;
-    }
-  }).catch(err => {
-    console.error("Error listing cameras:", err);
-    cameraSelect.innerHTML = `<option value="">ขอสิทธิ์เข้าใช้งานกล้องไม่สำเร็จ</option>`;
-  });
+  // Initially, set camera dropdown to system default option
+  cameraSelect.innerHTML = `<option value="">-- กล้องเริ่มต้นของอุปกรณ์ --</option>`;
   
   // Show recent scans
   renderRecentScans();
@@ -409,14 +423,16 @@ function startScanner() {
   html5QrCode = new Html5Qrcode("scanner-reader");
   
   const config = {
-    fps: 15,
+    fps: 20,
     qrbox: { width: 250, height: 250 },
-    aspectRatio: 1.333333 // 4:3 aspect ratio
+    aspectRatio: 1.333333
   };
   
-  // Start Camera Scan
+  // If activeCameraId is set, use it. Otherwise use environment (rear camera)
+  const cameraIdOrFacing = state.activeCameraId ? state.activeCameraId : { facingMode: "environment" };
+  
   html5QrCode.start(
-    state.activeCameraId || { facingMode: "environment" },
+    cameraIdOrFacing,
     config,
     onScanSuccess,
     onScanFailure
@@ -424,36 +440,63 @@ function startScanner() {
     state.isScanning = true;
     startBtn.style.display = 'none';
     stopBtn.style.display = 'inline-flex';
-    cameraSelect.disabled = true;
+    
+    // Once scanning has successfully started (which guarantees permissions have been granted!),
+    // we query available cameras to populate the list with actual camera names/labels.
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length > 0) {
+        // Find which camera is active
+        const activeId = html5QrCode.getCameraId();
+        
+        cameraSelect.innerHTML = devices.map((device, index) => {
+          const isSelected = device.id === activeId;
+          if (isSelected) {
+            state.activeCameraId = device.id;
+          }
+          return `<option value="${device.id}" ${isSelected ? 'selected' : ''}>${device.label || `กล้องที่ ${index + 1}`}</option>`;
+        }).join('');
+      }
+    }).catch(err => {
+      console.warn("Could not retrieve camera list names after permission granted:", err);
+    });
+    
     showToast("เปิดกล้องแล้ว", "เริ่มบันทึกข้อมูลการสแกนอัตโนมัติ", "success");
   }).catch(err => {
     console.error("Camera start error:", err);
-    showToast("เปิดกล้องล้มเหลว", "กรุณาอนุญาตสิทธิ์การเข้าถึงกล้องและลองใหม่อีกครั้ง", "error");
+    showToast("เปิดกล้องล้มเหลว", "โปรดอนุญาตสิทธิ์การใช้กล้อง และเปิดใช้งานเว็บแอปผ่าน HTTPS", "error");
     placeholder.style.display = 'flex';
     videoElem.style.display = 'none';
+    
+    // Set warning on camera select
+    cameraSelect.innerHTML = `<option value="">-- ขอสิทธิ์ใช้กล้องล้มเหลว --</option>`;
   });
 }
 
 function stopScanner() {
-  const startBtn = document.getElementById('btn-start-scan');
-  const stopBtn = document.getElementById('btn-stop-scan');
-  const cameraSelect = document.getElementById('camera-select');
-  const placeholder = document.getElementById('scanner-placeholder');
-  const videoElem = document.getElementById('scanner-reader');
-  
-  if (!state.isScanning || !html5QrCode) return;
-  
-  html5QrCode.stop().then(() => {
-    html5QrCode = null;
-    state.isScanning = false;
-    startBtn.style.display = 'inline-flex';
-    stopBtn.style.display = 'none';
-    cameraSelect.disabled = false;
-    placeholder.style.display = 'flex';
-    videoElem.style.display = 'none';
-    showToast("ปิดกล้องแล้ว", "หยุดการสแกนบัตรนักศึกษา", "warning");
-  }).catch(err => {
-    console.error("Camera stop error:", err);
+  return new Promise((resolve) => {
+    const startBtn = document.getElementById('btn-start-scan');
+    const stopBtn = document.getElementById('btn-stop-scan');
+    const placeholder = document.getElementById('scanner-placeholder');
+    const videoElem = document.getElementById('scanner-reader');
+    
+    if (!state.isScanning || !html5QrCode) {
+      resolve();
+      return;
+    }
+    
+    html5QrCode.stop().then(() => {
+      html5QrCode = null;
+      state.isScanning = false;
+      startBtn.style.display = 'inline-flex';
+      stopBtn.style.display = 'none';
+      placeholder.style.display = 'flex';
+      videoElem.style.display = 'none';
+      showToast("ปิดกล้องแล้ว", "หยุดการทำงานกล้องสแกนเนอร์", "warning");
+      resolve();
+    }).catch(err => {
+      console.error("Camera stop error:", err);
+      resolve();
+    });
   });
 }
 
@@ -465,7 +508,7 @@ function onScanSuccess(decodedText, decodedResult) {
   const now = Date.now();
   const scanData = decodedText.trim();
   
-  // 1. Debounce same scan string immediately within 3 seconds to avoid multi-register on glitchy camera
+  // 1. Debounce same scan string immediately within 3 seconds
   if (scanData === lastScannedText && (now - lastScannedTime) < 3000) {
     return; 
   }
@@ -473,12 +516,12 @@ function onScanSuccess(decodedText, decodedResult) {
   lastScannedText = scanData;
   lastScannedTime = now;
   
-  // 2. Validate Student ID format: 9 digits (e.g. 661121301)
+  // 2. Validate Student ID format: 9 digits
   const isStudentIdValid = /^\d{9}$/.test(scanData);
   
   if (!state.activeActivityId) {
     playBeep(false);
-    showToast("ไม่ได้เลือกกิจกรรม", "โปรดระบุหรือเลือกกิจกรรมที่จะลงบันทึกในดรอปดาวน์ก่อน", "error");
+    showToast("ไม่ได้เลือกกิจกรรม", "โปรดเลือกกิจกรรมที่จะลงบันทึกก่อนทำการสแกน", "error");
     return;
   }
   
@@ -487,7 +530,6 @@ function onScanSuccess(decodedText, decodedResult) {
   
   if (!isStudentIdValid) {
     playBeep(false);
-    // Add to logs as invalid scan
     addScanRecord(scanData, activityName, false, "รหัสไม่ถูกต้อง (ต้องเป็นตัวเลข 9 หลัก)");
     showToast("รหัสไม่ถูกต้อง", `สแกนพบ "${scanData}" แต่รหัสนักศึกษาต้องเป็นตัวเลข 9 หลักเท่านั้น`, "error");
     renderRecentScans();
@@ -510,10 +552,9 @@ function onScanSuccess(decodedText, decodedResult) {
   addScanRecord(scanData, activityName, true, "บันทึกสำเร็จ");
   showToast("บันทึกสำเร็จ", `รหัส ${scanData} เข้าร่วมกิจกรรม "${activityName}"`, "success");
   
-  // Re-render recent scans UI
   renderRecentScans();
   
-  // Simple scan HUD flash animation feedback
+  // Scanning HUD flash animation feedback
   const targetBox = document.querySelector('.scanner-target-box');
   if (targetBox) {
     targetBox.style.borderColor = 'var(--success-color)';
@@ -524,7 +565,7 @@ function onScanSuccess(decodedText, decodedResult) {
 }
 
 function onScanFailure(error) {
-  // Silent scan failures (normal behavior when scanning frames do not contain code)
+  // Silent scan failures
 }
 
 // Add a scan log item to State
@@ -538,7 +579,7 @@ function addScanRecord(studentId, activityName, isValid, statusMsg) {
     status: statusMsg
   };
   
-  state.scans.unshift(newScan); // Insert at beginning (newest first)
+  state.scans.unshift(newScan);
   saveToStorage();
 }
 
@@ -548,7 +589,6 @@ function renderRecentScans() {
   const activeAct = state.activities.find(a => a.id === state.activeActivityId);
   const currentActivityName = activeAct ? activeAct.name : '';
   
-  // Filter scans that belong to the active activity only
   const filteredScans = state.scans.filter(s => s.activityName === currentActivityName);
   
   if (filteredScans.length === 0) {
@@ -556,7 +596,6 @@ function renderRecentScans() {
     return;
   }
   
-  // Only display the 10 most recent scans
   const recent = filteredScans.slice(0, 10);
   
   container.innerHTML = recent.map(scan => {
@@ -611,7 +650,6 @@ function refreshDashboard() {
 function updateScanStats() {
   const selectedAct = document.getElementById('dash-activity-select').value;
   
-  // Scans filter
   let activeScans = state.scans.filter(s => s.isValid === true);
   let failedScans = state.scans.filter(s => s.isValid === false);
   
@@ -620,7 +658,6 @@ function updateScanStats() {
     failedScans = failedScans.filter(s => s.activityName === selectedAct);
   }
   
-  // Total Scanned (Unique Student IDs who succeeded)
   const uniqueStudents = new Set(activeScans.map(s => s.studentId));
   
   document.getElementById('stat-total-scans').innerText = activeScans.length;
@@ -628,7 +665,7 @@ function updateScanStats() {
   document.getElementById('stat-failed-scans').innerText = failedScans.length;
 }
 
-// Filter the table inside dashboard based on dropdown activity and search query
+// Filter the table inside dashboard
 function filterDashboardTable() {
   const selectedAct = document.getElementById('dash-activity-select').value;
   const searchQuery = document.getElementById('dash-search-input').value.trim();
@@ -636,12 +673,10 @@ function filterDashboardTable() {
   
   let filtered = state.scans;
   
-  // 1. Filter by activity name
   if (selectedAct !== 'ALL') {
     filtered = filtered.filter(s => s.activityName === selectedAct);
   }
   
-  // 2. Filter by search query (StudentID)
   if (searchQuery) {
     filtered = filtered.filter(s => s.studentId.includes(searchQuery));
   }
@@ -678,7 +713,7 @@ function filterDashboardTable() {
 // Export dashboard data to Excel or CSV
 function exportReport(formatType) {
   const selectedAct = document.getElementById('dash-activity-select').value;
-  let dataToExport = state.scans.filter(s => s.isValid === true); // Only export successful participants
+  let dataToExport = state.scans.filter(s => s.isValid === true);
   
   if (selectedAct !== 'ALL') {
     dataToExport = dataToExport.filter(s => s.activityName === selectedAct);
@@ -689,7 +724,6 @@ function exportReport(formatType) {
     return;
   }
   
-  // Prepare formatted array for Excel/CSV
   const rows = dataToExport.map((item, index) => ({
     "ลำดับ": index + 1,
     "รหัสนักศึกษา": item.studentId,
@@ -706,10 +740,8 @@ function exportReport(formatType) {
     }
     
     try {
-      // Create worksheet
       const ws = XLSX.utils.json_to_sheet(rows);
       
-      // Auto-fit column widths
       const colWidths = [
         { wch: 8 },  // ลำดับ
         { wch: 18 }, // รหัสนักศึกษา
@@ -718,11 +750,9 @@ function exportReport(formatType) {
       ];
       ws['!cols'] = colWidths;
       
-      // Create workbook
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "รายชื่อผู้เข้าร่วม");
       
-      // Download
       XLSX.writeFile(wb, `${filename}.xlsx`);
       showToast("ดาวน์โหลดสำเร็จ", `ดาวน์โหลดไฟล์ Excel เรียบร้อยแล้ว (${rows.length} รายการ)`, "success");
     } catch (e) {
@@ -731,7 +761,6 @@ function exportReport(formatType) {
     }
   } else if (formatType === 'csv') {
     try {
-      // Create CSV string with BOM to support Thai characters in Excel
       const headers = ["ลำดับ", "รหัสนักศึกษา", "ชื่อกิจกรรม", "วันเวลาที่บันทึก"];
       let csvContent = "\uFEFF"; // UTF-8 BOM
       csvContent += headers.join(",") + "\n";
@@ -739,14 +768,13 @@ function exportReport(formatType) {
       rows.forEach(r => {
         const rowData = [
           r["ลำดับ"],
-          `"${r["รหัสนักศึกษา"]}"`, // Wrap in quotes to avoid excel stripping leading zeros
+          `"${r["รหัสนักศึกษา"]}"`,
           `"${r["ชื่อกิจกรรม"].replace(/"/g, '""')}"`,
           `"${r["วันเวลาที่บันทึก"]}"`
         ];
         csvContent += rowData.join(",") + "\n";
       });
       
-      // Trigger download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -827,7 +855,6 @@ function initDataManagement() {
           }
         });
         
-        // Sort scans by timestamp descending (newest first)
         state.scans.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
         saveToStorage();
@@ -839,7 +866,7 @@ function initDataManagement() {
         refreshDashboard();
         
         showToast("นำเข้าข้อมูลเสร็จสิ้น", `เพิ่มกิจกรรมใหม่ ${newActCount} รายการ และข้อมูลสแกนใหม่ ${newScanCount} รายการ`, "success");
-        importInput.value = ''; // Reset input file
+        importInput.value = '';
       } catch (err) {
         console.error(err);
         showToast("นำเข้าข้อมูลล้มเหลว", "รูปแบบไฟล์สำรองไม่ถูกต้อง โปรดใช้ไฟล์ JSON ที่ดาวน์โหลดมาจากระบบนี้เท่านั้น", "error");
@@ -850,7 +877,7 @@ function initDataManagement() {
   });
   
   resetBtn.addEventListener('click', () => {
-    if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลกิจกรรมและประวัติการสแกนทั้งหมดในเบราว์เซอร์นี้? การกระทำนี้ไม่สามารถย้อนกลับได้ (แนะนำให้ดาวน์โหลดไฟล์สำรองเก็บไว้ก่อน)")) {
+    if (confirm("คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลกิจกรรมและประวัติการสแกนทั้งหมดในเบราว์เซอร์นี้? การกระทำนี้ไม่สามารถย้อนกลับได้")) {
       localStorage.clear();
       state.activities = [];
       state.scans = [];
@@ -875,7 +902,7 @@ function formatThaiDate(dateStr) {
   
   const d = parseInt(parts[2]);
   const mIndex = parseInt(parts[1]) - 1;
-  const y = parseInt(parts[0]) + 543; // Convert AD to Buddhist Era
+  const y = parseInt(parts[0]) + 543;
   
   const thaiMonths = [
     'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
@@ -892,7 +919,7 @@ function formatThaiDateTime(isoStr) {
   
   const d = date.getDate();
   const mIndex = date.getMonth();
-  const y = date.getFullYear() + 543; // Buddhist Era
+  const y = date.getFullYear() + 543;
   
   const hr = String(date.getHours()).padStart(2, '0');
   const min = String(date.getMinutes()).padStart(2, '0');
