@@ -998,6 +998,7 @@ async function syncFromSheets(silent = false) {
   
   let newActCount = 0;
   let newScanCount = 0;
+  let hasChanges = false;
   
   // 1. Fetch Activities
   if (config.sheetActsTsvUrl) {
@@ -1007,12 +1008,12 @@ async function syncFromSheets(silent = false) {
       const lines = text.split(/\r?\n/);
       
       if (lines.length > 1 && lines[0]) {
+        const remoteActs = [];
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
           const values = line.split('\t').map(v => v.trim().replace(/^"|"$/g, ''));
           
-          // Index mapping based on form response columns: 0=Timestamp, 1=ActivityID, 2=Name, 3=Date, 4=Time
           if (values.length >= 5) {
             const actId = values[1];
             const actName = values[2];
@@ -1020,20 +1021,65 @@ async function syncFromSheets(silent = false) {
             const actTime = values[4];
             
             if (actId && actName) {
-              const exists = state.activities.some(a => a.id === actId || (a.name === actName && a.date === actDate));
-              if (!exists) {
-                state.activities.push({
-                  id: actId,
-                  name: actName,
-                  date: actDate,
-                  time: actTime,
-                  synced: true
-                });
-                newActCount++;
-              }
+              remoteActs.push({
+                id: actId,
+                name: actName,
+                date: actDate,
+                time: actTime
+              });
             }
           }
         }
+        
+        // Reconcile Activities:
+        // Keep all local unsynced activities
+        const unsyncedActs = state.activities.filter(a => !a.synced);
+        const syncedActs = state.activities.filter(a => a.synced);
+        
+        const newSyncedActs = [];
+        
+        remoteActs.forEach(r => {
+          // Check if it matches a local unsynced activity (to mark it synced)
+          const matchUnsynced = unsyncedActs.find(a => a.id === r.id || (a.name === r.name && a.date === r.date));
+          if (matchUnsynced) {
+            matchUnsynced.synced = true;
+            matchUnsynced.id = r.id;
+            matchUnsynced.name = r.name;
+            matchUnsynced.date = r.date;
+            matchUnsynced.time = r.time;
+            hasChanges = true;
+          } else {
+            // Check if it's already in synced list
+            const existsInSynced = syncedActs.some(a => a.id === r.id || (a.name === r.name && a.date === r.date));
+            if (!existsInSynced) {
+              newSyncedActs.push({
+                id: r.id,
+                name: r.name,
+                date: r.date,
+                time: r.time,
+                synced: true
+              });
+              newActCount++;
+              hasChanges = true;
+            }
+          }
+        });
+        
+        // Filter synced list: keep only those that still exist in remoteActs
+        const activeSyncedActs = syncedActs.filter(a => 
+          remoteActs.some(r => r.id === a.id || (r.name === a.name && r.date === a.date))
+        );
+        
+        if (syncedActs.length !== activeSyncedActs.length) {
+          hasChanges = true;
+        }
+        
+        state.activities = [
+          ...unsyncedActs.filter(a => !a.synced),
+          ...unsyncedActs.filter(a => a.synced),
+          ...activeSyncedActs,
+          ...newSyncedActs
+        ];
       }
     } catch (e) {
       console.warn("Failed to fetch remote activities TSV:", e);
@@ -1048,53 +1094,104 @@ async function syncFromSheets(silent = false) {
       const lines = text.split(/\r?\n/);
       
       if (lines.length > 1 && lines[0]) {
+        const remoteScans = [];
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
           const values = line.split('\t').map(v => v.trim().replace(/^"|"$/g, ''));
           
-          // Index mapping: 0=Timestamp, 1=StudentID, 2=ActivityName
           if (values.length >= 3) {
             const timestamp = values[0];
             const studentId = values[1];
             const activityName = values[2];
             
             if (studentId && activityName) {
-              let isoTimestamp = new Date(timestamp).toISOString();
-              if (isNaN(new Date(timestamp).getTime())) {
-                isoTimestamp = timestamp;
-              }
-              
-              const exists = state.scans.some(s => s.studentId === studentId && s.activityName === activityName);
-              if (!exists) {
-                state.scans.push({
-                  id: 'scan_remote_' + Math.random().toString(36).substr(2, 5),
-                  timestamp: isoTimestamp,
-                  studentId: studentId,
-                  activityName: activityName,
-                  isValid: true,
-                  status: "บันทึกสำเร็จ",
-                  synced: true
-                });
-                newScanCount++;
-              }
+              const parsedDate = parseGoogleSheetsDate(timestamp);
+              const isoTimestamp = parsedDate ? parsedDate.toISOString() : timestamp;
+              remoteScans.push({
+                timestamp: isoTimestamp,
+                studentId: studentId,
+                activityName: activityName
+              });
             }
           }
         }
+        
+        // Reconcile Scans:
+        // Keep all local unsynced scans
+        const unsyncedScans = state.scans.filter(s => !s.synced);
+        const syncedScans = state.scans.filter(s => s.synced);
+        
+        const newSyncedScans = [];
+        
+        remoteScans.forEach(r => {
+          // Check if it matches a local unsynced scan (to mark it synced)
+          const matchUnsynced = unsyncedScans.find(s => s.studentId === r.studentId && s.activityName === r.activityName && s.isValid);
+          if (matchUnsynced) {
+            matchUnsynced.synced = true;
+            if (r.timestamp) {
+              matchUnsynced.timestamp = r.timestamp;
+            }
+            hasChanges = true;
+          } else {
+            // Check if it's already in synced list
+            const existsInSynced = syncedScans.some(s => s.studentId === r.studentId && s.activityName === r.activityName);
+            if (!existsInSynced) {
+              newSyncedScans.push({
+                id: 'scan_remote_' + Math.random().toString(36).substr(2, 5),
+                timestamp: r.timestamp,
+                studentId: r.studentId,
+                activityName: r.activityName,
+                isValid: true,
+                status: "บันทึกสำเร็จ",
+                synced: true
+              });
+              newScanCount++;
+              hasChanges = true;
+            }
+          }
+        });
+        
+        // Filter synced list: keep only those that still exist in remoteScans
+        const activeSyncedScans = syncedScans.filter(s => 
+          remoteScans.some(r => r.studentId === s.studentId && r.activityName === s.activityName)
+        );
+        
+        if (syncedScans.length !== activeSyncedScans.length) {
+          hasChanges = true;
+        }
+        
+        state.scans = [
+          ...unsyncedScans.filter(s => !s.synced),
+          ...unsyncedScans.filter(s => s.synced),
+          ...activeSyncedScans,
+          ...newSyncedScans
+        ];
       }
     } catch (e) {
       console.warn("Failed to fetch remote scans TSV:", e);
     }
   }
   
-  if (newActCount > 0 || newScanCount > 0) {
-    state.scans.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  if (hasChanges || newActCount > 0 || newScanCount > 0) {
+    state.scans.sort((a, b) => {
+      const timeA = new Date(a.timestamp).getTime();
+      const timeB = new Date(b.timestamp).getTime();
+      return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+    });
     saveToStorage();
     renderActivityDropdowns();
     renderActivityTable();
     renderRecentScans();
     refreshDashboard();
-    showToast("ดึงข้อมูลเสร็จสิ้น", `ได้รับกิจกรรมใหม่ ${newActCount} รายการ และข้อมูลสแกน ${newScanCount} รายการจาก Google Sheets`, "success");
+    
+    let msg = '';
+    if (newActCount > 0 || newScanCount > 0) {
+      msg = `ได้รับกิจกรรมใหม่ ${newActCount} รายการ และข้อมูลสแกน ${newScanCount} รายการจาก Google Sheets`;
+    } else {
+      msg = 'ซิงค์ข้อมูลปรับปรุงล่าสุดจากระบบเรียบร้อยแล้ว';
+    }
+    showToast("ดึงข้อมูลเสร็จสิ้น", msg, "success");
   } else {
     if (!silent) {
       showToast("ซิงค์สำเร็จ", "ข้อมูลตรงกับ Google Sheets ล่าสุดแล้ว", "success");
@@ -1455,3 +1552,58 @@ function escapeHTML(str) {
     }[tag] || tag)
   );
 }
+
+function parseGoogleSheetsDate(dateStr) {
+  if (!dateStr) return null;
+  dateStr = dateStr.trim();
+  
+  // Format: "24/6/2026, 17:26:12" or "24/6/2026 17:26:12" or "24/6/2569, 17:26:12"
+  const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})([,\s]+(\d{1,2}):(\d{1,2})(:(\d{1,2}))?)?/;
+  const match = dateStr.match(regex);
+  if (match) {
+    let part1 = parseInt(match[1], 10);
+    let part2 = parseInt(match[2], 10);
+    let year = parseInt(match[3], 10);
+    
+    let day, month;
+    if (part1 > 12) {
+      // 24/6/2026 -> part1 is day, part2 is month
+      day = part1;
+      month = part2 - 1;
+    } else if (part2 > 12) {
+      // 6/24/2026 -> part2 is day, part1 is month
+      day = part2;
+      month = part1 - 1;
+    } else {
+      // Default to day/month/year
+      day = part1;
+      month = part2 - 1;
+    }
+    
+    // Convert Buddhist Era to Gregorian if year is > 2400
+    if (year > 2400) {
+      year -= 543;
+    }
+    
+    const hour = match[5] ? parseInt(match[5], 10) : 0;
+    const minute = match[6] ? parseInt(match[6], 10) : 0;
+    const second = match[8] ? parseInt(match[8], 10) : 0;
+    
+    const date = new Date(year, month, day, hour, minute, second);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  
+  // Fallback to standard parsing
+  let date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    return null;
+  }
+  
+  if (date.getFullYear() > 2400) {
+    date.setFullYear(date.getFullYear() - 543);
+  }
+  return date;
+}
+
