@@ -496,7 +496,18 @@ function initScannerSettings() {
     stopScanner();
   });
   
-  cameraSelect.innerHTML = `<option value="">-- กล้องเริ่มต้นของอุปกรณ์ --</option>`;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (isIOS) {
+    cameraSelect.innerHTML = `
+      <option value="environment" ${state.activeCameraId !== 'user' ? 'selected' : ''}>กล้องหลัง (Back Camera)</option>
+      <option value="user" ${state.activeCameraId === 'user' ? 'selected' : ''}>กล้องหน้า (Front Camera)</option>
+    `;
+    if (!state.activeCameraId || (state.activeCameraId !== 'environment' && state.activeCameraId !== 'user')) {
+      state.activeCameraId = 'environment';
+    }
+  } else {
+    cameraSelect.innerHTML = `<option value="">-- กล้องเริ่มต้นของอุปกรณ์ --</option>`;
+  }
   renderRecentScans();
 }
 
@@ -522,7 +533,18 @@ function startScanner() {
     }
   };
   
-  const cameraIdOrFacing = state.activeCameraId ? state.activeCameraId : { facingMode: "environment" };
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  
+  let cameraIdOrFacing;
+  if (isIOS) {
+    if (state.activeCameraId === 'user') {
+      cameraIdOrFacing = { facingMode: "user" };
+    } else {
+      cameraIdOrFacing = { facingMode: "environment" };
+    }
+  } else {
+    cameraIdOrFacing = state.activeCameraId ? state.activeCameraId : { facingMode: "environment" };
+  }
   
   html5QrCode.start(
     cameraIdOrFacing,
@@ -535,31 +557,39 @@ function startScanner() {
     stopBtn.style.display = 'inline-flex';
     
     // Retrieve other camera devices on success
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length > 0) {
-        let activeId = '';
-        try {
-          if (html5QrCode && typeof html5QrCode.getCameraId === 'function') {
-            activeId = html5QrCode.getCameraId();
+    if (isIOS) {
+      // For iOS: retain user/environment options instead of listing raw IDs
+      let selectOptions = '';
+      selectOptions += `<option value="environment" ${state.activeCameraId === 'environment' ? 'selected' : ''}>กล้องหลัง (Back Camera)</option>`;
+      selectOptions += `<option value="user" ${state.activeCameraId === 'user' ? 'selected' : ''}>กล้องหน้า (Front Camera)</option>`;
+      cameraSelect.innerHTML = selectOptions;
+    } else {
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length > 0) {
+          let activeId = '';
+          try {
+            if (html5QrCode && typeof html5QrCode.getCameraId === 'function') {
+              activeId = html5QrCode.getCameraId();
+            }
+          } catch (e) {
+            console.warn(e);
           }
-        } catch (e) {
-          console.warn(e);
+          
+          let selectOptions = '';
+          devices.forEach((device, index) => {
+            const label = device.label || `กล้องที่ ${index + 1}`;
+            const isSelected = device.id === activeId || device.id === state.activeCameraId;
+            if (isSelected && !state.activeCameraId) {
+              state.activeCameraId = device.id;
+            }
+            selectOptions += `<option value="${device.id}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+          });
+          cameraSelect.innerHTML = selectOptions;
         }
-        
-        let selectOptions = '';
-        devices.forEach((device, index) => {
-          const label = device.label || `กล้องที่ ${index + 1}`;
-          const isSelected = device.id === activeId || device.id === state.activeCameraId;
-          if (isSelected && !state.activeCameraId) {
-            state.activeCameraId = device.id;
-          }
-          selectOptions += `<option value="${device.id}" ${isSelected ? 'selected' : ''}>${label}</option>`;
-        });
-        cameraSelect.innerHTML = selectOptions;
-      }
-    }).catch(err => {
-      console.warn("Could not retrieve camera list names:", err);
-    });
+      }).catch(err => {
+        console.warn("Could not retrieve camera list names:", err);
+      });
+    }
     
     showToast("เปิดกล้องแล้ว", "หันบาร์โค้ดหรือ QR Code หน้าบัตรให้อยู่ในกรอบเป้าเล็ง", "success");
   }).catch(err => {
