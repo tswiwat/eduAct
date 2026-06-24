@@ -144,7 +144,7 @@ function loadFromStorage() {
     
     const getStored = (key, fallback) => {
       const val = localStorage.getItem(key);
-      return val !== null ? val : fallback;
+      return (val !== null && val.trim() !== '') ? val : fallback;
     };
     
     config.formScansUrl = getStored(STORAGE_KEYS.FORM_SCANS_URL, 'https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse');
@@ -1157,6 +1157,54 @@ async function syncUnsyncedItems() {
   }
 }
 
+let isSettingsLocked = true;
+const settingsInputs = [
+  'form-scans-url', 'form-scans-entry-id', 'form-scans-entry-act', 'sheet-scans-tsv-url',
+  'form-acts-url', 'form-acts-entry-id', 'form-acts-entry-name', 'form-acts-entry-date', 'form-acts-entry-time', 'sheet-acts-tsv-url'
+];
+
+function applyLockState(locked) {
+  isSettingsLocked = locked;
+  
+  settingsInputs.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.disabled = locked;
+    }
+  });
+  
+  const saveBtn = document.getElementById('btn-save-sheet-settings');
+  if (saveBtn) {
+    saveBtn.disabled = locked;
+    if (locked) {
+      saveBtn.style.opacity = '0.6';
+      saveBtn.style.cursor = 'not-allowed';
+      saveBtn.innerHTML = 'บันทึกการเชื่อมโยงทั้งหมด (กรุณาปลดล็อคก่อนแก้ไข)';
+    } else {
+      saveBtn.style.opacity = '1';
+      saveBtn.style.cursor = 'pointer';
+      saveBtn.innerHTML = 'บันทึกการเชื่อมโยงทั้งหมด';
+    }
+  }
+  
+  const toggleBtn = document.getElementById('btn-toggle-lock-settings');
+  const lockIcon = document.getElementById('lock-icon-svg');
+  const lockBtnText = document.getElementById('lock-btn-text');
+  if (toggleBtn && lockIcon && lockBtnText) {
+    if (locked) {
+      lockBtnText.innerText = 'ปลดล็อคเพื่อแก้ไข';
+      toggleBtn.classList.remove('btn-danger');
+      toggleBtn.classList.add('btn-secondary');
+      lockIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>`;
+    } else {
+      lockBtnText.innerText = 'ล็อคการตั้งค่า';
+      toggleBtn.classList.remove('btn-secondary');
+      toggleBtn.classList.add('btn-danger');
+      lockIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path>`;
+    }
+  }
+}
+
 function saveSheetSettings() {
   config.formScansUrl = document.getElementById('form-scans-url').value.trim();
   config.formScansEntryId = document.getElementById('form-scans-entry-id').value.trim();
@@ -1174,6 +1222,8 @@ function saveSheetSettings() {
   showToast("บันทึกการตั้งค่า", "บันทึกข้อมูลการเชื่อมโยง Google Sheets เรียบร้อยแล้ว", "success");
   updateSyncButtonVisibility();
   
+  applyLockState(true); // Lock settings after save
+  
   if (config.sheetScansTsvUrl || config.sheetActsTsvUrl) {
     syncFromSheets();
   }
@@ -1186,6 +1236,13 @@ function initDataManagement() {
   const resetBtn = document.getElementById('btn-reset-data');
   const saveSheetBtn = document.getElementById('btn-save-sheet-settings');
   const syncUnsyncedBtn = document.getElementById('btn-sync-unsynced');
+  const toggleLockBtn = document.getElementById('btn-toggle-lock-settings');
+  
+  if (toggleLockBtn) {
+    toggleLockBtn.addEventListener('click', () => {
+      applyLockState(!isSettingsLocked);
+    });
+  }
   
   saveSheetBtn.addEventListener('click', () => {
     saveSheetSettings();
@@ -1309,6 +1366,8 @@ function initDataManagement() {
       renderRecentScans();
       refreshDashboard();
       updateSyncButtonVisibility();
+      
+      applyLockState(true); // Lock settings back to default on reset
       
       showToast("ล้างระบบเรียบร้อย", "ข้อมูลการตั้งค่าและฐานข้อมูลถูกรีเซ็ตเรียบร้อยแล้ว", "warning");
     }

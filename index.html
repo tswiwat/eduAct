@@ -330,11 +330,19 @@
           
           <!-- Card 1: Google Sheet Connection via Google Forms -->
           <div class="card">
-            <div class="card-title">
-              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              เชื่อมโยง Google Sheets ผ่าน Google Forms (ไร้สคริปต์)
+            <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; width: 100%;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span>เชื่อมโยง Google Sheets (ไร้สคริปต์)</span>
+              </div>
+              <button type="button" id="btn-toggle-lock-settings" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.25rem;">
+                <svg id="lock-icon-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                <span id="lock-btn-text">ปลดล็อคเพื่อแก้ไข</span>
+              </button>
             </div>
             
             <p style="font-size: 0.9rem; color: var(--text-muted);">
@@ -346,21 +354,21 @@
               <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--primary-color); margin-bottom: 0.5rem;">1. ฟอร์มสำหรับสแกนบันทึกเข้าร่วม (Scan Log Form)</h3>
               <div class="form-group mb-1">
                 <label for="form-scans-url">Google Form Submit URL (ลงท้ายด้วย /formResponse):</label>
-                <input type="url" id="form-scans-url" placeholder="https://docs.google.com/forms/d/e/.../formResponse" value="https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse">
+                <input type="url" id="form-scans-url" placeholder="https://docs.google.com/forms/d/e/.../formResponse" value="https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse" disabled>
               </div>
               <div class="grid-2">
                 <div class="form-group">
                   <label for="form-scans-entry-id">StudentID Entry ID (เช่น entry.123456789):</label>
-                  <input type="text" id="form-scans-entry-id" placeholder="entry.xxxxxxxxx" value="entry.516759243">
+                  <input type="text" id="form-scans-entry-id" placeholder="entry.xxxxxxxxx" value="entry.516759243" disabled>
                 </div>
                 <div class="form-group">
                   <label for="form-scans-entry-act">ActivityName Entry ID (เช่น entry.987654321):</label>
-                  <input type="text" id="form-scans-entry-act" placeholder="entry.xxxxxxxxx" value="entry.1191458563">
+                  <input type="text" id="form-scans-entry-act" placeholder="entry.xxxxxxxxx" value="entry.1191458563" disabled>
                 </div>
               </div>
               <div class="form-group" style="margin-top: 0.5rem;">
                 <label for="sheet-scans-tsv-url">ลิงก์เผยแพร่เว็บชีตการบันทึกสแกน (TSV Published URL):</label>
-                <input type="url" id="sheet-scans-tsv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=tsv&gid=..." value="https://docs.google.com/spreadsheets/d/1iXEiZTc3dAlGf2-GPAGleXDjYkJwJfS5VP0HoRqMtqA/export?format=tsv">
+                <input type="url" id="sheet-scans-tsv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=tsv&gid=..." value="https://docs.google.com/spreadsheets/d/1iXEiZTc3dAlGf2-GPAGleXDjYkJwJfS5VP0HoRqMtqA/export?format=tsv" disabled>
               </div>
             </div>
 
@@ -369,37 +377,37 @@
               <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--primary-color); margin-bottom: 0.5rem;">2. ฟอร์มสำหรับจัดการกิจกรรม (Activity Form)</h3>
               <div class="form-group mb-1">
                 <label for="form-acts-url">Google Form Submit URL (ลงท้ายด้วย /formResponse):</label>
-                <input type="url" id="form-acts-url" placeholder="https://docs.google.com/forms/d/e/.../formResponse" value="https://docs.google.com/forms/d/e/1FAIpQLSeDRWFcB1z6szNOYi4CwXNlsViOwLUIrRv3k4gPD1tOv9LKeQ/formResponse">
+                <input type="url" id="form-acts-url" placeholder="https://docs.google.com/forms/d/e/.../formResponse" value="https://docs.google.com/forms/d/e/1FAIpQLSeDRWFcB1z6szNOYi4CwXNlsViOwLUIrRv3k4gPD1tOv9LKeQ/formResponse" disabled>
               </div>
               <div class="grid-2 mb-1">
                 <div class="form-group">
                   <label for="form-acts-entry-id">Activity ID Entry ID:</label>
-                  <input type="text" id="form-acts-entry-id" placeholder="entry.xxxxxxxxx" value="entry.1257509628">
+                  <input type="text" id="form-acts-entry-id" placeholder="entry.xxxxxxxxx" value="entry.1257509628" disabled>
                 </div>
                 <div class="form-group">
                   <label for="form-acts-entry-name">Activity Name Entry ID:</label>
-                  <input type="text" id="form-acts-entry-name" placeholder="entry.xxxxxxxxx" value="entry.1200865155">
+                  <input type="text" id="form-acts-entry-name" placeholder="entry.xxxxxxxxx" value="entry.1200865155" disabled>
                 </div>
               </div>
               <div class="grid-2">
                 <div class="form-group">
                   <label for="form-acts-entry-date">Date Entry ID:</label>
-                  <input type="text" id="form-acts-entry-date" placeholder="entry.xxxxxxxxx" value="entry.468554742">
+                  <input type="text" id="form-acts-entry-date" placeholder="entry.xxxxxxxxx" value="entry.468554742" disabled>
                 </div>
                 <div class="form-group">
                   <label for="form-acts-entry-time">Time Entry ID:</label>
-                  <input type="text" id="form-acts-entry-time" placeholder="entry.xxxxxxxxx" value="entry.1824685290">
+                  <input type="text" id="form-acts-entry-time" placeholder="entry.xxxxxxxxx" value="entry.1824685290" disabled>
                 </div>
               </div>
               <div class="form-group" style="margin-top: 0.5rem;">
                 <label for="sheet-acts-tsv-url">ลิงก์เผยแพร่เว็บชีตรายการกิจกรรม (TSV Published URL):</label>
-                <input type="url" id="sheet-acts-tsv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=tsv&gid=..." value="https://docs.google.com/spreadsheets/d/1eK3or3idDQWgn2d52Z_MsjCYt1B3DSa7W602LOnqcwU/export?format=tsv">
+                <input type="url" id="sheet-acts-tsv-url" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=tsv&gid=..." value="https://docs.google.com/spreadsheets/d/1eK3or3idDQWgn2d52Z_MsjCYt1B3DSa7W602LOnqcwU/export?format=tsv" disabled>
               </div>
             </div>
             
             <div style="margin-top: 1rem;">
-              <button type="button" id="btn-save-sheet-settings" class="btn" style="width: 100%;">
-                บันทึกการเชื่อมโยงทั้งหมด
+              <button type="button" id="btn-save-sheet-settings" class="btn" style="width: 100%; opacity: 0.6; cursor: not-allowed;" disabled>
+                บันทึกการเชื่อมโยงทั้งหมด (กรุณาปลดล็อคก่อนแก้ไข)
               </button>
             </div>
             
