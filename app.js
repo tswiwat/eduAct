@@ -1032,54 +1032,43 @@ async function syncFromSheets(silent = false) {
         }
         
         // Reconcile Activities:
-        // Keep all local unsynced activities
         const unsyncedActs = state.activities.filter(a => !a.synced);
-        const syncedActs = state.activities.filter(a => a.synced);
-        
-        const newSyncedActs = [];
+        const reconciledActs = [];
         
         remoteActs.forEach(r => {
-          // Check if it matches a local unsynced activity (to mark it synced)
-          const matchUnsynced = unsyncedActs.find(a => a.id === r.id || (a.name === r.name && a.date === r.date));
-          if (matchUnsynced) {
-            matchUnsynced.synced = true;
-            matchUnsynced.id = r.id;
-            matchUnsynced.name = r.name;
-            matchUnsynced.date = r.date;
-            matchUnsynced.time = r.time;
+          const matchIndex = unsyncedActs.findIndex(a => a.id === r.id || (a.name === r.name && a.date === r.date));
+          if (matchIndex !== -1) {
+            const matched = unsyncedActs[matchIndex];
+            matched.synced = true;
+            matched.id = r.id;
+            matched.name = r.name;
+            matched.date = r.date;
+            matched.time = r.time;
+            reconciledActs.push(matched);
+            unsyncedActs.splice(matchIndex, 1);
             hasChanges = true;
           } else {
-            // Check if it's already in synced list
-            const existsInSynced = syncedActs.some(a => a.id === r.id || (a.name === r.name && a.date === r.date));
-            if (!existsInSynced) {
-              newSyncedActs.push({
-                id: r.id,
-                name: r.name,
-                date: r.date,
-                time: r.time,
-                synced: true
-              });
-              newActCount++;
-              hasChanges = true;
-            }
+            reconciledActs.push({
+              id: r.id,
+              name: r.name,
+              date: r.date,
+              time: r.time,
+              synced: true
+            });
+            newActCount++;
+            hasChanges = true;
           }
         });
         
-        // Filter synced list: keep only those that still exist in remoteActs
-        const activeSyncedActs = syncedActs.filter(a => 
-          remoteActs.some(r => r.id === a.id || (r.name === a.name && r.date === a.date))
-        );
+        const oldActTotal = state.activities.length;
+        state.activities = [
+          ...unsyncedActs,
+          ...reconciledActs
+        ];
         
-        if (syncedActs.length !== activeSyncedActs.length) {
+        if (state.activities.length !== oldActTotal) {
           hasChanges = true;
         }
-        
-        state.activities = [
-          ...unsyncedActs.filter(a => !a.synced),
-          ...unsyncedActs.filter(a => a.synced),
-          ...activeSyncedActs,
-          ...newSyncedActs
-        ];
       }
     } catch (e) {
       console.warn("Failed to fetch remote activities TSV:", e);
@@ -1118,55 +1107,45 @@ async function syncFromSheets(silent = false) {
         }
         
         // Reconcile Scans:
-        // Keep all local unsynced scans
         const unsyncedScans = state.scans.filter(s => !s.synced);
-        const syncedScans = state.scans.filter(s => s.synced);
-        
-        const newSyncedScans = [];
+        const reconciledScans = [];
         
         remoteScans.forEach(r => {
-          // Check if it matches a local unsynced scan (to mark it synced)
-          const matchUnsynced = unsyncedScans.find(s => s.studentId === r.studentId && s.activityName === r.activityName && s.isValid);
-          if (matchUnsynced) {
-            matchUnsynced.synced = true;
+          // Check if this remote scan matches one of our local unsynced scans
+          const matchIndex = unsyncedScans.findIndex(s => s.studentId === r.studentId && s.activityName === r.activityName && s.isValid);
+          if (matchIndex !== -1) {
+            const matched = unsyncedScans[matchIndex];
+            matched.synced = true;
             if (r.timestamp) {
-              matchUnsynced.timestamp = r.timestamp;
+              matched.timestamp = r.timestamp;
             }
+            reconciledScans.push(matched);
+            unsyncedScans.splice(matchIndex, 1);
             hasChanges = true;
           } else {
-            // Check if it's already in synced list
-            const existsInSynced = syncedScans.some(s => s.studentId === r.studentId && s.activityName === r.activityName);
-            if (!existsInSynced) {
-              newSyncedScans.push({
-                id: 'scan_remote_' + Math.random().toString(36).substr(2, 5),
-                timestamp: r.timestamp,
-                studentId: r.studentId,
-                activityName: r.activityName,
-                isValid: true,
-                status: "บันทึกสำเร็จ",
-                synced: true
-              });
-              newScanCount++;
-              hasChanges = true;
-            }
+            reconciledScans.push({
+              id: 'scan_remote_' + Math.random().toString(36).substr(2, 5),
+              timestamp: r.timestamp,
+              studentId: r.studentId,
+              activityName: r.activityName,
+              isValid: true,
+              status: "บันทึกสำเร็จ",
+              synced: true
+            });
+            newScanCount++;
+            hasChanges = true;
           }
         });
         
-        // Filter synced list: keep only those that still exist in remoteScans
-        const activeSyncedScans = syncedScans.filter(s => 
-          remoteScans.some(r => r.studentId === s.studentId && r.activityName === s.activityName)
-        );
+        const oldTotal = state.scans.length;
+        state.scans = [
+          ...unsyncedScans,
+          ...reconciledScans
+        ];
         
-        if (syncedScans.length !== activeSyncedScans.length) {
+        if (state.scans.length !== oldTotal) {
           hasChanges = true;
         }
-        
-        state.scans = [
-          ...unsyncedScans.filter(s => !s.synced),
-          ...unsyncedScans.filter(s => s.synced),
-          ...activeSyncedScans,
-          ...newSyncedScans
-        ];
       }
     } catch (e) {
       console.warn("Failed to fetch remote scans TSV:", e);
