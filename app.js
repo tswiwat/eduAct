@@ -10,9 +10,17 @@ let state = {
 };
 
 let config = {
-  scriptUrl: '',
-  scansSheetId: '1VghIOSqF86N64bHv6BQjL9xcxQwY9K7dCUIJ66v4y0Y',
-  activitiesSheetId: '1-0hbaN-21dHL7BYw-OtCeJHd351mnJ1g6K_7KzH2yL4'
+  formScansUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse',
+  formScansEntryId: 'entry.516759243',
+  formScansEntryAct: 'entry.1191458563',
+  sheetScansTsvUrl: '',
+  
+  formActsUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSeDRWFcB1z6szNOYi4CwXNlsViOwLUIrRv3k4gPD1tOv9LKeQ/formResponse',
+  formActsEntryId: 'entry.1257509628',
+  formActsEntryName: 'entry.1200865155',
+  formActsEntryDate: 'entry.468554742',
+  formActsEntryTime: 'entry.1824685290',
+  sheetActsTsvUrl: ''
 };
 
 // Scanner instance and pause state
@@ -53,7 +61,7 @@ function playBeep(success = true) {
       }
     }
   } catch (e) {
-    console.warn("Web Audio API is blocked or not supported on this device. Beep skipped.");
+    console.warn("Web Audio API not supported or blocked on this device.");
   }
 }
 
@@ -98,13 +106,21 @@ const STORAGE_KEYS = {
   SCANS: 'edu_scans_v1',
   ACTIVE_ACTIVITY: 'edu_active_activity_v1',
   THEME: 'edu_theme_v1',
-  SCRIPT_URL: 'edu_script_url_v1',
-  SCANS_SHEET_ID: 'edu_scans_sheet_id_v1',
-  ACTIVITIES_SHEET_ID: 'edu_activities_sheet_id_v1'
+  
+  FORM_SCANS_URL: 'edu_f_scans_url_v1',
+  FORM_SCANS_ENTRY_ID: 'edu_f_scans_entry_id_v1',
+  FORM_SCANS_ENTRY_ACT: 'edu_f_scans_entry_act_v1',
+  SHEET_SCANS_TSV_URL: 'edu_s_scans_tsv_v1',
+  
+  FORM_ACTS_URL: 'edu_f_acts_url_v1',
+  FORM_ACTS_ENTRY_ID: 'edu_f_acts_entry_id_v1',
+  FORM_ACTS_ENTRY_NAME: 'edu_f_acts_entry_name_v1',
+  FORM_ACTS_ENTRY_DATE: 'edu_f_acts_entry_date_v1',
+  FORM_ACTS_ENTRY_TIME: 'edu_f_acts_entry_time_v1',
+  SHEET_ACTS_TSV_URL: 'edu_s_acts_tsv_v1'
 };
 
 function loadFromStorage() {
-  // Load Activities Safely
   try {
     const storedActivities = localStorage.getItem(STORAGE_KEYS.ACTIVITIES);
     state.activities = storedActivities ? JSON.parse(storedActivities) : [];
@@ -113,7 +129,6 @@ function loadFromStorage() {
     state.activities = [];
   }
 
-  // Load Scans Safely
   try {
     const storedScans = localStorage.getItem(STORAGE_KEYS.SCANS);
     state.scans = storedScans ? JSON.parse(storedScans) : [];
@@ -122,15 +137,27 @@ function loadFromStorage() {
     state.scans = [];
   }
 
-  // Load Settings and Google Sheet Config
   try {
     state.activeActivityId = localStorage.getItem(STORAGE_KEYS.ACTIVE_ACTIVITY) || '';
     state.theme = localStorage.getItem(STORAGE_KEYS.THEME) || 'light';
     document.documentElement.setAttribute('data-theme', state.theme);
     
-    config.scriptUrl = localStorage.getItem(STORAGE_KEYS.SCRIPT_URL) || '';
-    config.scansSheetId = localStorage.getItem(STORAGE_KEYS.SCANS_SHEET_ID) || '1VghIOSqF86N64bHv6BQjL9xcxQwY9K7dCUIJ66v4y0Y';
-    config.activitiesSheetId = localStorage.getItem(STORAGE_KEYS.ACTIVITIES_SHEET_ID) || '1-0hbaN-21dHL7BYw-OtCeJHd351mnJ1g6K_7KzH2yL4';
+    const getStored = (key, fallback) => {
+      const val = localStorage.getItem(key);
+      return val !== null ? val : fallback;
+    };
+    
+    config.formScansUrl = getStored(STORAGE_KEYS.FORM_SCANS_URL, 'https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse');
+    config.formScansEntryId = getStored(STORAGE_KEYS.FORM_SCANS_ENTRY_ID, 'entry.516759243');
+    config.formScansEntryAct = getStored(STORAGE_KEYS.FORM_SCANS_ENTRY_ACT, 'entry.1191458563');
+    config.sheetScansTsvUrl = getStored(STORAGE_KEYS.SHEET_SCANS_TSV_URL, '');
+    
+    config.formActsUrl = getStored(STORAGE_KEYS.FORM_ACTS_URL, 'https://docs.google.com/forms/d/e/1FAIpQLSeDRWFcB1z6szNOYi4CwXNlsViOwLUIrRv3k4gPD1tOv9LKeQ/formResponse');
+    config.formActsEntryId = getStored(STORAGE_KEYS.FORM_ACTS_ENTRY_ID, 'entry.1257509628');
+    config.formActsEntryName = getStored(STORAGE_KEYS.FORM_ACTS_ENTRY_NAME, 'entry.1200865155');
+    config.formActsEntryDate = getStored(STORAGE_KEYS.FORM_ACTS_ENTRY_DATE, 'entry.468554742');
+    config.formActsEntryTime = getStored(STORAGE_KEYS.FORM_ACTS_ENTRY_TIME, 'entry.1824685290');
+    config.sheetActsTsvUrl = getStored(STORAGE_KEYS.SHEET_ACTS_TSV_URL, '');
   } catch (e) {
     console.error("Failed to load settings:", e);
   }
@@ -142,18 +169,25 @@ function saveToStorage() {
     localStorage.setItem(STORAGE_KEYS.SCANS, JSON.stringify(state.scans));
     localStorage.setItem(STORAGE_KEYS.ACTIVE_ACTIVITY, state.activeActivityId);
     localStorage.setItem(STORAGE_KEYS.THEME, state.theme);
-    localStorage.setItem(STORAGE_KEYS.SCRIPT_URL, config.scriptUrl);
-    localStorage.setItem(STORAGE_KEYS.SCANS_SHEET_ID, config.scansSheetId);
-    localStorage.setItem(STORAGE_KEYS.ACTIVITIES_SHEET_ID, config.activitiesSheetId);
+    
+    localStorage.setItem(STORAGE_KEYS.FORM_SCANS_URL, config.formScansUrl);
+    localStorage.setItem(STORAGE_KEYS.FORM_SCANS_ENTRY_ID, config.formScansEntryId);
+    localStorage.setItem(STORAGE_KEYS.FORM_SCANS_ENTRY_ACT, config.formScansEntryAct);
+    localStorage.setItem(STORAGE_KEYS.SHEET_SCANS_TSV_URL, config.sheetScansTsvUrl);
+    
+    localStorage.setItem(STORAGE_KEYS.FORM_ACTS_URL, config.formActsUrl);
+    localStorage.setItem(STORAGE_KEYS.FORM_ACTS_ENTRY_ID, config.formActsEntryId);
+    localStorage.setItem(STORAGE_KEYS.FORM_ACTS_ENTRY_NAME, config.formActsEntryName);
+    localStorage.setItem(STORAGE_KEYS.FORM_ACTS_ENTRY_DATE, config.formActsEntryDate);
+    localStorage.setItem(STORAGE_KEYS.FORM_ACTS_ENTRY_TIME, config.formActsEntryTime);
+    localStorage.setItem(STORAGE_KEYS.SHEET_ACTS_TSV_URL, config.sheetActsTsvUrl);
   } catch (e) {
     console.error("Failed to save to local storage:", e);
-    showToast("คำเตือน", "พื้นที่จัดเก็บข้อมูลเต็ม! กรุณาส่งออกข้อมูลเพื่อเพิ่มพื้นที่", "warning");
   }
 }
 
 // Init Application
 window.addEventListener('DOMContentLoaded', () => {
-  // Inject mobile video styling dynamically
   const style = document.createElement('style');
   style.innerHTML = `
     #scanner-reader video {
@@ -177,15 +211,23 @@ window.addEventListener('DOMContentLoaded', () => {
   renderActivityTable();
   updateScanStats();
   
-  // Set sheet inputs initially
-  document.getElementById('sheet-script-url').value = config.scriptUrl;
-  document.getElementById('sheet-scans-id').value = config.scansSheetId;
-  document.getElementById('sheet-activities-id').value = config.activitiesSheetId;
+  // Populate form input values from storage
+  document.getElementById('form-scans-url').value = config.formScansUrl;
+  document.getElementById('form-scans-entry-id').value = config.formScansEntryId;
+  document.getElementById('form-scans-entry-act').value = config.formScansEntryAct;
+  document.getElementById('sheet-scans-tsv-url').value = config.sheetScansTsvUrl;
+  
+  document.getElementById('form-acts-url').value = config.formActsUrl;
+  document.getElementById('form-acts-entry-id').value = config.formActsEntryId;
+  document.getElementById('form-acts-entry-name').value = config.formActsEntryName;
+  document.getElementById('form-acts-entry-date').value = config.formActsEntryDate;
+  document.getElementById('form-acts-entry-time').value = config.formActsEntryTime;
+  document.getElementById('sheet-acts-tsv-url').value = config.sheetActsTsvUrl;
   
   updateSyncButtonVisibility();
   
-  // Auto-sync database from Google Sheets on launch
-  if (config.scriptUrl) {
+  // Auto-sync database from Sheets TSV on startup
+  if (config.sheetScansTsvUrl || config.sheetActsTsvUrl) {
     syncFromSheets();
   }
 });
@@ -212,18 +254,15 @@ function initTabs() {
     btn.addEventListener('click', () => {
       const tabName = btn.dataset.tab;
       
-      // If leaving scan tab, stop camera scanning if active
       if (state.currentTab === 'scan' && tabName !== 'scan') {
         stopScanner();
       }
       
       state.currentTab = tabName;
       
-      // Update buttons active class
       tabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // Update views active class
       tabContents.forEach(content => {
         content.classList.remove('active');
         if (content.id === `${tabName}-tab`) {
@@ -231,7 +270,6 @@ function initTabs() {
         }
       });
       
-      // Force UI refresh on tab entry
       if (tabName === 'scan') {
         renderActivityDropdowns();
         renderRecentScans();
@@ -265,7 +303,6 @@ function initActivityForm() {
       return;
     }
     
-    // Check for duplicate activity name on the same date
     const exists = state.activities.some(act => act.name.toLowerCase() === name.toLowerCase() && act.date === date);
     if (exists) {
       showToast("กิจกรรมซ้ำ", "มีกิจกรรมชื่อนี้ในวันที่กำหนดอยู่แล้ว", "warning");
@@ -277,7 +314,7 @@ function initActivityForm() {
       name: name,
       date: date,
       time: time,
-      synced: false // Initially unsynced
+      synced: false
     };
     
     state.activities.push(newActivity);
@@ -292,20 +329,25 @@ function initActivityForm() {
     
     renderActivityDropdowns();
     renderActivityTable();
-    showToast("บันทึกในเครื่อง", `สร้างกิจกรรม "${name}" ในระบบเรียบร้อยแล้ว`, "success");
+    showToast("บันทึกในเครื่อง", `สร้างกิจกรรม "${name}" เรียบร้อยแล้ว`, "success");
     
-    // Attempt online sync
-    if (config.scriptUrl) {
-      const row = [newActivity.id, newActivity.name, newActivity.date, newActivity.time];
-      sendToSheet(config.activitiesSheetId, 'activities', 'append', row).then(success => {
+    // Send to Google Sheets via Form POST
+    if (config.formActsUrl) {
+      const params = {};
+      params[config.formActsEntryId] = newActivity.id;
+      params[config.formActsEntryName] = newActivity.name;
+      params[config.formActsEntryDate] = newActivity.date;
+      params[config.formActsEntryTime] = newActivity.time;
+      
+      submitToForm(config.formActsUrl, params).then(success => {
         if (success) {
           newActivity.synced = true;
           saveToStorage();
           renderActivityTable();
           updateSyncButtonVisibility();
-          showToast("ออนไลน์", `บันทึกและซิงค์กิจกรรมไปยัง Google Sheet แล้ว`, "success");
+          showToast("ออนไลน์", "บันทึกข้อมูลกิจกรรมลง Google Sheets แล้ว", "success");
         } else {
-          showToast("โหมดออฟไลน์", `ไม่สามารถส่งออนไลน์ได้ แต่ประวัติยังคงเก็บอยู่ในเครื่อง`, "warning");
+          showToast("โหมดออฟไลน์", "เก็บประวัติในเครื่องแล้ว จะอัปโหลดเมื่ออินเทอร์เน็ตพร้อม", "warning");
           updateSyncButtonVisibility();
         }
       });
@@ -314,11 +356,10 @@ function initActivityForm() {
     }
   });
   
-  // Set default date to today
   document.getElementById('activity-date').valueAsDate = new Date();
 }
 
-// Render Activities in Table (Configuration Tab)
+// Render Activities in Table
 function renderActivityTable() {
   const tbody = document.getElementById('activity-table-body');
   
@@ -343,7 +384,7 @@ function renderActivityTable() {
     const thaiDate = formatThaiDate(act.date);
     const syncStatus = act.synced 
       ? '<span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: var(--success-color);">ซิงค์แล้ว</span>'
-      : '<span class="badge" style="background-color: rgba(249, 115, 22, 0.1); color: var(--secondary-color);">ออฟไลน์</span>';
+      : '<span class="badge" style="background-color: rgba(249, 115, 22, 0.1); color: var(--secondary-color);">รอซิงค์</span>';
     
     return `
       <tr>
@@ -369,32 +410,10 @@ window.deleteActivity = function(id) {
   const scanCount = state.scans.filter(s => s.activityName === act.name).length;
   let confirmMessage = `ยืนยันการลบกิจกรรม "${act.name}"?`;
   if (scanCount > 0) {
-    confirmMessage += `\n*คำเตือน: กิจกรรมนี้มีข้อมูลการเข้าร่วมแล้ว ${scanCount} รายการ ข้อมูลการเข้าร่วมของกิจกรรมนี้จะยังคงอยู่ในเครื่อง แต่อาจแสดงผลไม่สมบูรณ์ในแดชบอร์ด`;
+    confirmMessage += `\n*คำเตือน: กิจกรรมนี้มีข้อมูลการสแกนแล้ว ${scanCount} รายการ ข้อมูลในเครื่องจะคงอยู่ แต่อาจแสดงผลไม่ครบในแดชบอร์ด`;
   }
   
   if (confirm(confirmMessage)) {
-    // If synced, send delete request to remote sheet
-    if (config.scriptUrl && act.synced) {
-      const payload = {
-        action: 'deleteActivity',
-        sheetId: config.activitiesSheetId,
-        sheetName: 'activities',
-        id: act.id
-      };
-      fetch(config.scriptUrl, {
-        method: 'POST',
-        mode: 'cors',
-        redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      }).then(res => res.json())
-        .then(result => {
-          if (result.status === 'success') {
-            showToast("ลบออนไลน์สำเร็จ", `ลบกิจกรรมออกจาก Google Sheet แล้ว`, "success");
-          }
-        }).catch(err => console.warn("Failed to delete online:", err));
-    }
-
     state.activities = state.activities.filter(a => a.id !== id);
     if (state.activeActivityId === id) {
       state.activeActivityId = state.activities.length > 0 ? state.activities[0].id : '';
@@ -403,7 +422,7 @@ window.deleteActivity = function(id) {
     renderActivityDropdowns();
     renderActivityTable();
     updateSyncButtonVisibility();
-    showToast("ลบสำเร็จ", `ลบกิจกรรมเรียบร้อยแล้ว`, "success");
+    showToast("ลบสำเร็จ", `ลบกิจกรรมเรียบร้อยแล้ว (หากอัปโหลดขึ้น Google Sheet แล้ว ต้องเข้าไปลบแถวเองในชีต)`, "success");
   }
 };
 
@@ -414,7 +433,6 @@ function renderActivityDropdowns() {
   
   const sorted = [...state.activities].sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`));
   
-  // 1. Scan Dropdown
   if (sorted.length === 0) {
     scanSelect.innerHTML = `<option value="">-- โปรดสร้างกิจกรรมก่อนในแท็บจัดการกิจกรรม --</option>`;
     state.activeActivityId = '';
@@ -430,7 +448,6 @@ function renderActivityDropdowns() {
     }).join('');
   }
   
-  // 2. Dashboard Dropdown
   const currentDashVal = dashSelect ? dashSelect.value : 'ALL';
   let dashOptions = `<option value="ALL">-- แสดงทุกกิจกรรมรวมกัน --</option>` + sorted.map(act => {
     const isSelected = act.name === currentDashVal ? 'selected' : '';
@@ -442,7 +459,7 @@ function renderActivityDropdowns() {
   }
 }
 
-// Scanner Settings & Camera detection flow
+// Scanner Settings
 function initScannerSettings() {
   const startBtn = document.getElementById('btn-start-scan');
   const stopBtn = document.getElementById('btn-stop-scan');
@@ -494,11 +511,9 @@ function startScanner() {
   
   html5QrCode = new Html5Qrcode("scanner-reader");
   
-  // Mobile Safe Scanning Configuration to prevent Safari freeze & stuttering
   const config = {
-    fps: 10, // Capped at 10 fps to prevent mobile processors from overheating and freezing
+    fps: 10, // Capped to 10 FPS to prevent CPU overheating and freezing on mobile
     qrbox: (width, height) => {
-      // Dynamic viewfinder size relative to screen
       const size = Math.max(200, Math.min(320, Math.min(width, height) * 0.75));
       return { width: size, height: size };
     }
@@ -516,7 +531,7 @@ function startScanner() {
     startBtn.style.display = 'none';
     stopBtn.style.display = 'inline-flex';
     
-    // Request other cameras ONLY after camera opens successfully (guarantees permission)
+    // Retrieve other camera devices on success
     Html5Qrcode.getCameras().then(devices => {
       if (devices && devices.length > 0) {
         let activeId = '';
@@ -543,13 +558,13 @@ function startScanner() {
       console.warn("Could not retrieve camera list names:", err);
     });
     
-    showToast("เปิดกล้องแล้ว", "วางบาร์โค้ดหรือ QR ในกรอบเป้าหมายเพื่อสแกน", "success");
+    showToast("เปิดกล้องแล้ว", "หันบาร์โค้ดหรือ QR Code หน้าบัตรให้อยู่ในกรอบเป้าเล็ง", "success");
   }).catch(err => {
     console.error("Camera start error:", err);
-    showToast("เปิดกล้องล้มเหลว", "โปรดอนุญาตกล้อง และตรวจสอบว่าเว็บใช้ HTTPS", "error");
+    showToast("เปิดกล้องล้มเหลว", "โปรดอนุญาตสิทธิ์กล้อง และเปิดเข้าใช้ผ่านลิงก์ HTTPS", "error");
     placeholder.style.display = 'flex';
     videoElem.style.display = 'none';
-    cameraSelect.innerHTML = `<option value="">-- เปิดใช้งานกล้องไม่สำเร็จ --</option>`;
+    cameraSelect.innerHTML = `<option value="">-- ขอสิทธิ์กล้องล้มเหลว --</option>`;
   });
 }
 
@@ -586,17 +601,16 @@ let lastScannedText = '';
 let lastScannedTime = 0;
 
 function onScanSuccess(decodedText, decodedResult) {
-  if (isScanPaused) return; // Ignore scans during pause duration
+  if (isScanPaused) return; // Prevent loop scan glitch
   
   const scanData = decodedText.trim();
-  
-  // 1. Debounce same scan string immediately within 3 seconds
   const now = Date.now();
+  
   if (scanData === lastScannedText && (now - lastScannedTime) < 3000) {
     return; 
   }
   
-  // Pause scanning for 2.5 seconds to avoid camera spams and freezes
+  // Pause scanner for 2.5 seconds to allow UI updates and prevent duplicate scan triggers
   isScanPaused = true;
   setTimeout(() => {
     isScanPaused = false;
@@ -605,12 +619,11 @@ function onScanSuccess(decodedText, decodedResult) {
   lastScannedText = scanData;
   lastScannedTime = now;
   
-  // 2. Validate Student ID format (9 digits)
   const isStudentIdValid = /^\d{9}$/.test(scanData);
   
   if (!state.activeActivityId) {
     playBeep(false);
-    showToast("ไม่ได้เลือกกิจกรรม", "โปรดเลือกกิจกรรมที่จะลงบันทึกในช่องตัวเลือกก่อน", "error");
+    showToast("ไม่ได้เลือกกิจกรรม", "โปรดเลือกกิจกรรมที่จะลงบันทึกก่อน", "error");
     return;
   }
   
@@ -620,23 +633,22 @@ function onScanSuccess(decodedText, decodedResult) {
   if (!isStudentIdValid) {
     playBeep(false);
     addScanRecord(scanData, activityName, false, "รหัสไม่ถูกต้อง (ต้องเป็นตัวเลข 9 หลัก)");
-    showToast("รหัสไม่ถูกต้อง", `รหัสนักศึกษาต้องมี 9 ตัวเลขเท่านั้น (พบ: ${scanData})`, "error");
+    showToast("รหัสไม่ถูกต้อง", `รหัสนักศึกษาต้องเป็นตัวเลข 9 หลักเท่านั้น (พบ: ${scanData})`, "error");
     renderRecentScans();
     return;
   }
   
-  // 3. Prevent duplicate scan for the SAME activity
   const isDuplicate = state.scans.some(s => s.studentId === scanData && s.activityName === activityName && s.isValid === true);
   
   if (isDuplicate) {
     playBeep(false);
-    showToast("ลงทะเบียนแล้ว", `รหัส ${scanData} เคยบันทึกร่วมกิจกรรม "${activityName}" แล้ว`, "warning");
+    showToast("ลงทะเบียนแล้ว", `รหัส ${scanData} เคยลงชื่อในกิจกรรม "${activityName}" แล้ว`, "warning");
     addScanRecord(scanData, activityName, false, "ลงทะเบียนซ้ำซ้อน");
     renderRecentScans();
     return;
   }
   
-  // 4. Save scan to local storage
+  // Save scan locally
   playBeep(true);
   
   const newScan = {
@@ -646,15 +658,15 @@ function onScanSuccess(decodedText, decodedResult) {
     activityName: activityName,
     isValid: true,
     status: "บันทึกสำเร็จ",
-    synced: false // Initially unsynced
+    synced: false
   };
   
   state.scans.unshift(newScan);
   saveToStorage();
   renderRecentScans();
-  showToast("บันทึกในเครื่อง", `บันทึกรหัสนักศึกษา ${scanData} เข้าร่วมกิจกรรมแล้ว`, "success");
+  showToast("บันทึกในเครื่อง", `บันทึกรหัสนักศึกษา ${scanData} สำเร็จ`, "success");
   
-  // Scan HUD visual flash feedback
+  // Scanning visual HUD green flash
   const targetBox = document.querySelector('.scanner-target-box');
   if (targetBox) {
     targetBox.style.borderColor = 'var(--success-color)';
@@ -663,23 +675,19 @@ function onScanSuccess(decodedText, decodedResult) {
     }, 600);
   }
   
-  // Attempt online sync to Google Sheet
-  if (config.scriptUrl) {
-    const row = [
-      newScan.id, 
-      newScan.timestamp, 
-      newScan.studentId, 
-      newScan.activityName, 
-      'ผ่าน', 
-      newScan.status
-    ];
-    sendToSheet(config.scansSheetId, 'scans', 'append', row).then(success => {
+  // Send scan data online to Google Sheets via Forms
+  if (config.formScansUrl) {
+    const params = {};
+    params[config.formScansEntryId] = newScan.studentId;
+    params[config.formScansEntryAct] = newScan.activityName;
+    
+    submitToForm(config.formScansUrl, params).then(success => {
       if (success) {
         newScan.synced = true;
         saveToStorage();
-        showToast("ออนไลน์", `บันทึกรหัส ${scanData} ลง Google Sheet แล้ว`, "success");
+        showToast("ออนไลน์", `บันทึกข้อมูลรหัส ${scanData} ลง Google Sheet แล้ว`, "success");
       } else {
-        showToast("โหมดออฟไลน์", `ไม่สามารถส่งออนไลน์ได้ แต่ประวัติยังคงเก็บอยู่ในเครื่อง`, "warning");
+        showToast("โหมดออฟไลน์", "ไม่สามารถส่งลง Google Sheet ได้ แต่ประวัติเซฟในเครื่องแล้ว", "warning");
       }
       updateSyncButtonVisibility();
     });
@@ -689,7 +697,7 @@ function onScanSuccess(decodedText, decodedResult) {
 }
 
 function onScanFailure(error) {
-  // Silent scanner frames failures
+  // Silent scan failures
 }
 
 // Add a local scan log item
@@ -701,7 +709,7 @@ function addScanRecord(studentId, activityName, isValid, statusMsg) {
     activityName: activityName,
     isValid: isValid,
     status: statusMsg,
-    synced: false // Failed/Invalid scans are kept locally or synced as fails
+    synced: false
   };
   
   state.scans.unshift(newScan);
@@ -921,96 +929,127 @@ function exportReport(formatType) {
   }
 }
 
-// Google Sheets Sync Bridge integration
-async function sendToSheet(sheetId, sheetName, action, rowData, extraParams = {}) {
-  if (!config.scriptUrl) return false;
+// Google Form Submit Integration (no-cors)
+async function submitToForm(formUrl, params) {
+  if (!formUrl) return false;
   
-  const payload = {
-    action: action,
-    sheetId: sheetId,
-    sheetName: sheetName,
-    rowData: rowData,
-    ...extraParams
-  };
+  const formData = new URLSearchParams();
+  for (const key in params) {
+    formData.append(key, params[key]);
+  }
   
   try {
-    const response = await fetch(config.scriptUrl, {
+    await fetch(formUrl, {
       method: 'POST',
-      mode: 'cors',
-      redirect: 'follow',
+      mode: 'no-cors', // Bypasses CORS policy issues for cross-origin forms
       headers: {
-        'Content-Type': 'text/plain;charset=utf-8' // Content-Type text/plain avoids CORS Preflight checks!
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify(payload)
+      body: formData.toString()
     });
-    const result = await response.json();
-    return result.status === 'success';
-  } catch (err) {
-    console.error("Error sending to sheet:", err);
+    // no-cors returns an opaque response, which we treat as a successful submit trigger
+    return true;
+  } catch (e) {
+    console.error("Form submission failed:", e);
     return false;
   }
 }
 
-// Fetch activities and scans from Google Sheets to sync with local database
+// Fetch activities and scans from Google Sheets published TSV URLs
 async function syncFromSheets() {
-  if (!config.scriptUrl) return;
+  if (!config.sheetScansTsvUrl && !config.sheetActsTsvUrl) return;
   
-  showToast("กำลังดาวน์โหลด", "กำลังดึงข้อมูลอัปเดตล่าสุดจาก Google Sheets...", "warning");
+  showToast("กำลังซิงค์", "กำลังดึงข้อมูลอัปเดตล่าสุดจาก Google Sheets (TSV)...", "warning");
   
   let newActCount = 0;
   let newScanCount = 0;
   
   // 1. Fetch Activities
-  try {
-    const url = `${config.scriptUrl}?action=getActivities&sheetId=${config.activitiesSheetId}&sheetName=activities`;
-    const response = await fetch(url);
-    const remoteActivities = await response.json();
-    
-    if (Array.isArray(remoteActivities)) {
-      remoteActivities.forEach(incomingAct => {
-        // Prevent duplicate local insertions
-        const exists = state.activities.some(a => a.id === incomingAct.id || (a.name === incomingAct.name && a.date.slice(0, 10) === incomingAct.date.slice(0, 10)));
-        if (!exists) {
-          state.activities.push({
-            id: incomingAct.id,
-            name: incomingAct.name,
-            date: incomingAct.date.slice(0, 10),
-            time: incomingAct.time,
-            synced: true
-          });
-          newActCount++;
+  if (config.sheetActsTsvUrl) {
+    try {
+      const response = await fetch(config.sheetActsTsvUrl);
+      const text = await response.text();
+      const lines = text.split(/\r?\n/);
+      
+      if (lines.length > 1 && lines[0]) {
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const values = line.split('\t').map(v => v.trim().replace(/^"|"$/g, ''));
+          
+          // Index mapping based on form response columns: 0=Timestamp, 1=ActivityID, 2=Name, 3=Date, 4=Time
+          if (values.length >= 5) {
+            const actId = values[1];
+            const actName = values[2];
+            const actDate = values[3];
+            const actTime = values[4];
+            
+            if (actId && actName) {
+              const exists = state.activities.some(a => a.id === actId || (a.name === actName && a.date === actDate));
+              if (!exists) {
+                state.activities.push({
+                  id: actId,
+                  name: actName,
+                  date: actDate,
+                  time: actTime,
+                  synced: true
+                });
+                newActCount++;
+              }
+            }
+          }
         }
-      });
+      }
+    } catch (e) {
+      console.warn("Failed to fetch remote activities TSV:", e);
     }
-  } catch (e) {
-    console.warn("Failed to fetch remote activities:", e);
   }
   
   // 2. Fetch Scans
-  try {
-    const url = `${config.scriptUrl}?action=getScans&sheetId=${config.scansSheetId}&sheetName=scans`;
-    const response = await fetch(url);
-    const remoteScans = await response.json();
-    
-    if (Array.isArray(remoteScans)) {
-      remoteScans.forEach(incomingScan => {
-        const exists = state.scans.some(s => s.id === incomingScan.id || (s.studentId === incomingScan.studentId && s.activityName === incomingScan.activityName && s.timestamp === incomingScan.timestamp));
-        if (!exists) {
-          state.scans.push({
-            id: incomingScan.id,
-            timestamp: incomingScan.timestamp,
-            studentId: incomingScan.studentId,
-            activityName: incomingScan.activityName,
-            isValid: incomingScan.isValid === 'true' || incomingScan.isValid === true || incomingScan.isValid === 'ผ่าน',
-            status: incomingScan.status,
-            synced: true
-          });
-          newScanCount++;
+  if (config.sheetScansTsvUrl) {
+    try {
+      const response = await fetch(config.sheetScansTsvUrl);
+      const text = await response.text();
+      const lines = text.split(/\r?\n/);
+      
+      if (lines.length > 1 && lines[0]) {
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          const values = line.split('\t').map(v => v.trim().replace(/^"|"$/g, ''));
+          
+          // Index mapping: 0=Timestamp, 1=StudentID, 2=ActivityName
+          if (values.length >= 3) {
+            const timestamp = values[0];
+            const studentId = values[1];
+            const activityName = values[2];
+            
+            if (studentId && activityName) {
+              let isoTimestamp = new Date(timestamp).toISOString();
+              if (isNaN(new Date(timestamp).getTime())) {
+                isoTimestamp = timestamp;
+              }
+              
+              const exists = state.scans.some(s => s.studentId === studentId && s.activityName === activityName);
+              if (!exists) {
+                state.scans.push({
+                  id: 'scan_remote_' + Math.random().toString(36).substr(2, 5),
+                  timestamp: isoTimestamp,
+                  studentId: studentId,
+                  activityName: activityName,
+                  isValid: true,
+                  status: "บันทึกสำเร็จ",
+                  synced: true
+                });
+                newScanCount++;
+              }
+            }
+          }
         }
-      });
+      }
+    } catch (e) {
+      console.warn("Failed to fetch remote scans TSV:", e);
     }
-  } catch (e) {
-    console.warn("Failed to fetch remote scans:", e);
   }
   
   if (newActCount > 0 || newScanCount > 0) {
@@ -1022,7 +1061,7 @@ async function syncFromSheets() {
     refreshDashboard();
     showToast("ดึงข้อมูลเสร็จสิ้น", `ได้รับกิจกรรมใหม่ ${newActCount} รายการ และข้อมูลสแกน ${newScanCount} รายการจาก Google Sheets`, "success");
   } else {
-    showToast("ซิงค์สำเร็จ", "ข้อมูลในเครื่องตรงกับ Google Sheets ล่าสุดแล้ว", "success");
+    showToast("ซิงค์สำเร็จ", "ข้อมูลตรงกับ Google Sheets ล่าสุดแล้ว", "success");
   }
 }
 
@@ -1036,7 +1075,7 @@ function updateSyncButtonVisibility() {
   const syncBtn = document.getElementById('btn-sync-unsynced');
   const count = getUnsyncedCount();
   
-  if (config.scriptUrl && count > 0) {
+  if ((config.formScansUrl || config.formActsUrl) && count > 0) {
     syncBtn.innerHTML = `
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="animation: spin 3s infinite linear; margin-right: 0.5rem; vertical-align: middle;">
         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89"></path>
@@ -1050,8 +1089,8 @@ function updateSyncButtonVisibility() {
 }
 
 async function syncUnsyncedItems() {
-  if (!config.scriptUrl) {
-    showToast("ไม่ได้ตั้งค่า URL", "โปรดกรอก Google Apps Script Web App URL ก่อนกดซิงค์", "warning");
+  if (!config.formScansUrl && !config.formActsUrl) {
+    showToast("ไม่ได้ตั้งค่าฟอร์ม", "โปรดตั้งค่า Google Form URL ก่อนทำการกดซิงค์", "warning");
     return;
   }
   
@@ -1068,9 +1107,14 @@ async function syncUnsyncedItems() {
   // 1. Sync Activities
   for (let i = 0; i < state.activities.length; i++) {
     const act = state.activities[i];
-    if (!act.synced) {
-      const row = [act.id, act.name, act.date, act.time];
-      const success = await sendToSheet(config.activitiesSheetId, 'activities', 'append', row);
+    if (!act.synced && config.formActsUrl) {
+      const params = {};
+      params[config.formActsEntryId] = act.id;
+      params[config.formActsEntryName] = act.name;
+      params[config.formActsEntryDate] = act.date;
+      params[config.formActsEntryTime] = act.time;
+      
+      const success = await submitToForm(config.formActsUrl, params);
       if (success) {
         act.synced = true;
         successCount++;
@@ -1082,16 +1126,12 @@ async function syncUnsyncedItems() {
   // 2. Sync Scans
   for (let i = 0; i < state.scans.length; i++) {
     const scan = state.scans[i];
-    if (!scan.synced) {
-      const row = [
-        scan.id, 
-        scan.timestamp, 
-        scan.studentId, 
-        scan.activityName, 
-        scan.isValid ? 'ผ่าน' : 'ไม่ผ่าน', 
-        scan.status
-      ];
-      const success = await sendToSheet(config.scansSheetId, 'scans', 'append', row);
+    if (!scan.synced && config.formScansUrl && scan.isValid) {
+      const params = {};
+      params[config.formScansEntryId] = scan.studentId;
+      params[config.formScansEntryAct] = scan.activityName;
+      
+      const success = await submitToForm(config.formScansUrl, params);
       if (success) {
         scan.synced = true;
         successCount++;
@@ -1103,65 +1143,31 @@ async function syncUnsyncedItems() {
   updateSyncButtonVisibility();
   
   if (successCount > 0) {
-    showToast("ซิงค์สำเร็จ", `ควบรวมข้อมูลไปยัง Google Sheet เรียบร้อยแล้ว ${successCount} รายการ!`, "success");
+    showToast("ซิงค์สำเร็จ", `ส่งข้อมูลไปยัง Google Sheets เรียบร้อยแล้ว ${successCount} รายการ!`, "success");
     refreshDashboard();
   } else {
-    showToast("ซิงค์ล้มเหลว", "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ โปรดตรวจสอบเครือข่ายอินเทอร์เน็ต", "error");
-  }
-}
-
-async function testConnection() {
-  const url = document.getElementById('sheet-script-url').value.trim();
-  const scansId = document.getElementById('sheet-scans-id').value.trim();
-  const activitiesId = document.getElementById('sheet-activities-id').value.trim();
-  
-  if (!url) {
-    showToast("ข้อมูลไม่ครบ", "โปรดกรอก Google Apps Script Web App URL ก่อนกดทดสอบ", "warning");
-    return;
-  }
-  
-  showToast("กำลังทดสอบ", "ระบบกำลังทดสอบติดต่อกับ Google Sheets...", "warning");
-  
-  try {
-    const payload = {
-      action: 'test',
-      sheetId: scansId || '1VghIOSqF86N64bHv6BQjL9xcxQwY9K7dCUIJ66v4y0Y',
-      sheetName: 'scans'
-    };
-    const res = await fetch(url, {
-      method: 'POST',
-      mode: 'cors',
-      redirect: 'follow',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
-    });
-    const result = await res.json();
-    
-    if (result.status === 'success') {
-      showToast("เชื่อมต่อสำเร็จ", "เชื่อมต่อสเปรดชีตสแกนสำเร็จและชีตพร้อมใช้งาน!", "success");
-    } else {
-      showToast("มีข้อผิดพลาด", "ชีตตอบกลับว่า: " + result.message, "error");
-    }
-  } catch (err) {
-    console.error(err);
-    showToast("เชื่อมต่อล้มเหลว", "ไม่สามารถติดต่อสคริปต์ได้ ตรวจสอบ URL หรือสิทธิ์การเข้าถึงชีต", "error");
+    showToast("ซิงค์ล้มเหลว", "ไม่สามารถส่งข้อมูลได้ โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต", "error");
   }
 }
 
 function saveSheetSettings() {
-  const url = document.getElementById('sheet-script-url').value.trim();
-  const scansId = document.getElementById('sheet-scans-id').value.trim();
-  const activitiesId = document.getElementById('sheet-activities-id').value.trim();
+  config.formScansUrl = document.getElementById('form-scans-url').value.trim();
+  config.formScansEntryId = document.getElementById('form-scans-entry-id').value.trim();
+  config.formScansEntryAct = document.getElementById('form-scans-entry-act').value.trim();
+  config.sheetScansTsvUrl = document.getElementById('sheet-scans-tsv-url').value.trim();
   
-  config.scriptUrl = url;
-  config.scansSheetId = scansId || '1VghIOSqF86N64bHv6BQjL9xcxQwY9K7dCUIJ66v4y0Y';
-  config.activitiesSheetId = activitiesId || '1-0hbaN-21dHL7BYw-OtCeJHd351mnJ1g6K_7KzH2yL4';
+  config.formActsUrl = document.getElementById('form-acts-url').value.trim();
+  config.formActsEntryId = document.getElementById('form-acts-entry-id').value.trim();
+  config.formActsEntryName = document.getElementById('form-acts-entry-name').value.trim();
+  config.formActsEntryDate = document.getElementById('form-acts-entry-date').value.trim();
+  config.formActsEntryTime = document.getElementById('form-acts-entry-time').value.trim();
+  config.sheetActsTsvUrl = document.getElementById('sheet-acts-tsv-url').value.trim();
   
   saveToStorage();
-  showToast("บันทึกการตั้งค่า", "บันทึกข้อมูลการเชื่อมโยง Google Sheet สำเร็จ", "success");
+  showToast("บันทึกการตั้งค่า", "บันทึกข้อมูลการเชื่อมโยง Google Sheets เรียบร้อยแล้ว", "success");
   updateSyncButtonVisibility();
   
-  if (config.scriptUrl) {
+  if (config.sheetScansTsvUrl || config.sheetActsTsvUrl) {
     syncFromSheets();
   }
 }
@@ -1171,18 +1177,11 @@ function initDataManagement() {
   const exportBtn = document.getElementById('btn-export-backup');
   const importInput = document.getElementById('import-file-input');
   const resetBtn = document.getElementById('btn-reset-data');
-  
-  // Sheet Settings listeners
   const saveSheetBtn = document.getElementById('btn-save-sheet-settings');
-  const testConnBtn = document.getElementById('btn-test-sheet-connection');
   const syncUnsyncedBtn = document.getElementById('btn-sync-unsynced');
   
   saveSheetBtn.addEventListener('click', () => {
     saveSheetSettings();
-  });
-  
-  testConnBtn.addEventListener('click', () => {
-    testConnection();
   });
   
   syncUnsyncedBtn.addEventListener('click', () => {
@@ -1229,7 +1228,6 @@ function initDataManagement() {
         let newActCount = 0;
         let newScanCount = 0;
         
-        // 1. Merge Activities
         data.activities.forEach(incomingAct => {
           const exists = state.activities.some(a => a.id === incomingAct.id || (a.name === incomingAct.name && a.date === incomingAct.date));
           if (!exists) {
@@ -1238,7 +1236,6 @@ function initDataManagement() {
           }
         });
         
-        // 2. Merge Scan Records
         data.scans.forEach(incomingScan => {
           const exists = state.scans.some(s => s.id === incomingScan.id || (s.studentId === incomingScan.studentId && s.activityName === incomingScan.activityName && s.timestamp === incomingScan.timestamp));
           if (!exists) {
@@ -1260,7 +1257,7 @@ function initDataManagement() {
         importInput.value = '';
       } catch (err) {
         console.error(err);
-        showToast("นำเข้าข้อมูลล้มเหลว", "รูปแบบไฟล์สำรองไม่ถูกต้อง โปรดใช้ไฟล์ JSON ที่ดาวน์โหลดจากระบบนี้เท่านั้น", "error");
+        showToast("นำเข้าข้อมูลล้มเหลว", "รูปแบบไฟล์สำรองไม่ถูกต้อง", "error");
         importInput.value = '';
       }
     };
@@ -1273,15 +1270,32 @@ function initDataManagement() {
       state.activities = [];
       state.scans = [];
       state.activeActivityId = '';
-      config.scriptUrl = '';
-      config.scansSheetId = '1VghIOSqF86N64bHv6BQjL9xcxQwY9K7dCUIJ66v4y0Y';
-      config.activitiesSheetId = '1-0hbaN-21dHL7BYw-OtCeJHd351mnJ1g6K_7KzH2yL4';
+      
+      config.formScansUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSdSWjomjgkgdqmhs5qniDg_v8kfl3RjJlnk6cZaLNJ9Ody15w/formResponse';
+      config.formScansEntryId = 'entry.516759243';
+      config.formScansEntryAct = 'entry.1191458563';
+      config.sheetScansTsvUrl = '';
+      
+      config.formActsUrl = 'https://docs.google.com/forms/d/e/1FAIpQLSeDRWFcB1z6szNOYi4CwXNlsViOwLUIrRv3k4gPD1tOv9LKeQ/formResponse';
+      config.formActsEntryId = 'entry.1257509628';
+      config.formActsEntryName = 'entry.1200865155';
+      config.formActsEntryDate = 'entry.468554742';
+      config.formActsEntryTime = 'entry.1824685290';
+      config.sheetActsTsvUrl = '';
       
       saveToStorage();
       
-      document.getElementById('sheet-script-url').value = '';
-      document.getElementById('sheet-scans-id').value = config.scansSheetId;
-      document.getElementById('sheet-activities-id').value = config.activitiesSheetId;
+      document.getElementById('form-scans-url').value = config.formScansUrl;
+      document.getElementById('form-scans-entry-id').value = config.formScansEntryId;
+      document.getElementById('form-scans-entry-act').value = config.formScansEntryAct;
+      document.getElementById('sheet-scans-tsv-url').value = '';
+      
+      document.getElementById('form-acts-url').value = config.formActsUrl;
+      document.getElementById('form-acts-entry-id').value = config.formActsEntryId;
+      document.getElementById('form-acts-entry-name').value = config.formActsEntryName;
+      document.getElementById('form-acts-entry-date').value = config.formActsEntryDate;
+      document.getElementById('form-acts-entry-time').value = config.formActsEntryTime;
+      document.getElementById('sheet-acts-tsv-url').value = '';
       
       renderActivityDropdowns();
       renderActivityTable();
